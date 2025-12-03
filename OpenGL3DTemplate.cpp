@@ -5,6 +5,11 @@
 #include <math.h>
 #include <time.h>
 
+// Constants
+#define PI 3.14159265359f
+#define MAX_PITCH 89.0f
+#define MIN_PITCH -89.0f
+
 // Camera and player state
 float playerX = 0.0f, playerY = 1.5f, playerZ = 10.0f;
 float cameraYaw = 0.0f, cameraPitch = 0.0f;
@@ -60,6 +65,7 @@ void updateSunLight();
 void updateLampLights();
 
 // Simple OBJ loader placeholder (using primitives instead due to complexity)
+// TODO: Implement actual OBJ/3DS model loading for production use
 void loadModel(const char* filename) {
     // In a full implementation, this would parse OBJ files
     // For this template, we'll use OpenGL primitives styled like models
@@ -239,8 +245,10 @@ void drawTree(float x, float z, float height) {
     glTranslatef(0, height * 0.3f, 0);
     glRotatef(-90, 1, 0, 0);
     GLUquadric* quad = gluNewQuadric();
-    gluCylinder(quad, 0.3f, 0.5f, height * 0.6f, 10, 10);
-    gluDeleteQuadric(quad);
+    if (quad) {
+        gluCylinder(quad, 0.3f, 0.5f, height * 0.6f, 10, 10);
+        gluDeleteQuadric(quad);
+    }
     glPopMatrix();
     
     // Foliage
@@ -379,8 +387,10 @@ void drawStreetLamp(float x, float z) {
     glTranslatef(0, 2.5f, 0);
     glRotatef(-90, 1, 0, 0);
     GLUquadric* quad = gluNewQuadric();
-    gluCylinder(quad, 0.1f, 0.15f, 5.0f, 12, 12);
-    gluDeleteQuadric(quad);
+    if (quad) {
+        gluCylinder(quad, 0.1f, 0.15f, 5.0f, 12, 12);
+        gluDeleteQuadric(quad);
+    }
     glPopMatrix();
     
     // Lamp head
@@ -459,8 +469,8 @@ void setupLighting() {
 
 void updateSunLight() {
     // Calculate sun position
-    float sunX = cos(sunAngle * 3.14159f / 180.0f) * 50.0f;
-    float sunY = sin(sunAngle * 3.14159f / 180.0f) * 50.0f;
+    float sunX = cos(sunAngle * PI / 180.0f) * 50.0f;
+    float sunY = sin(sunAngle * PI / 180.0f) * 50.0f;
     float sunZ = 0.0f;
     
     GLfloat light_position[] = { sunX, sunY, sunZ, 0.0f }; // Directional light
@@ -552,9 +562,9 @@ void Display(void) {
     if (thirdPerson) {
         // Third-person camera
         float distance = isCrouching ? 4.0f : 5.0f;
-        camX = playerX - sin(cameraYaw * 3.14159f / 180.0f) * distance;
+        camX = playerX - sin(cameraYaw * PI / 180.0f) * distance;
         camY = playerY + 2.5f;
-        camZ = playerZ - cos(cameraYaw * 3.14159f / 180.0f) * distance;
+        camZ = playerZ - cos(cameraYaw * PI / 180.0f) * distance;
         lookX = playerX;
         lookY = playerY + 1.0f;
         lookZ = playerZ;
@@ -564,9 +574,9 @@ void Display(void) {
         camX = playerX;
         camY = playerY + eyeHeight;
         camZ = playerZ;
-        lookX = playerX + sin(cameraYaw * 3.14159f / 180.0f);
-        lookY = playerY + eyeHeight + tan(cameraPitch * 3.14159f / 180.0f);
-        lookZ = playerZ + cos(cameraYaw * 3.14159f / 180.0f);
+        lookX = playerX + sin(cameraYaw * PI / 180.0f);
+        lookY = playerY + eyeHeight + tan(cameraPitch * PI / 180.0f);
+        lookZ = playerZ + cos(cameraYaw * PI / 180.0f);
     }
     
     gluLookAt(camX, camY, camZ, lookX, lookY, lookZ, 0.0f, 1.0f, 0.0f);
@@ -665,20 +675,20 @@ void updatePlayer() {
     float moveDirX = 0, moveDirZ = 0;
     
     if (keyW) {
-        moveDirX += sin(cameraYaw * 3.14159f / 180.0f);
-        moveDirZ += cos(cameraYaw * 3.14159f / 180.0f);
+        moveDirX += sin(cameraYaw * PI / 180.0f);
+        moveDirZ += cos(cameraYaw * PI / 180.0f);
     }
     if (keyS) {
-        moveDirX -= sin(cameraYaw * 3.14159f / 180.0f);
-        moveDirZ -= cos(cameraYaw * 3.14159f / 180.0f);
+        moveDirX -= sin(cameraYaw * PI / 180.0f);
+        moveDirZ -= cos(cameraYaw * PI / 180.0f);
     }
     if (keyA) {
-        moveDirX -= cos(cameraYaw * 3.14159f / 180.0f);
-        moveDirZ += sin(cameraYaw * 3.14159f / 180.0f);
+        moveDirX -= cos(cameraYaw * PI / 180.0f);
+        moveDirZ += sin(cameraYaw * PI / 180.0f);
     }
     if (keyD) {
-        moveDirX += cos(cameraYaw * 3.14159f / 180.0f);
-        moveDirZ -= sin(cameraYaw * 3.14159f / 180.0f);
+        moveDirX += cos(cameraYaw * PI / 180.0f);
+        moveDirZ -= sin(cameraYaw * PI / 180.0f);
     }
     
     // Normalize movement
@@ -814,8 +824,8 @@ void Mouse(int x, int y) {
     cameraPitch += yoffset;
     
     // Constrain pitch
-    if (cameraPitch > 89.0f) cameraPitch = 89.0f;
-    if (cameraPitch < -89.0f) cameraPitch = -89.0f;
+    if (cameraPitch > MAX_PITCH) cameraPitch = MAX_PITCH;
+    if (cameraPitch < MIN_PITCH) cameraPitch = MIN_PITCH;
 }
 
 void Reshape(int width, int height) {
@@ -831,7 +841,7 @@ void main(int argc, char** argv) {
     
     glutInitWindowSize(800, 600);
     glutInitWindowPosition(100, 100);
-    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GL_DEPTH);
+    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
     
     glutCreateWindow("BlitzMail - Rural Level Scene");
     
