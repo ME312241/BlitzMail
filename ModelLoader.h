@@ -41,11 +41,13 @@ struct Face {
     int texCoordIndices[3];
 };
 
+// Note: Mesh stores expanded vertex/normal/texcoord data for simplicity
+// The faces vector is available for indexed rendering if needed in the future
 struct Mesh {
     std::vector<Vector3> vertices;
     std::vector<Vector3> normals;
     std::vector<Vector2> texCoords;
-    std::vector<Face> faces;
+    std::vector<Face> faces;  // Available for future indexed rendering
     GLuint textureID;
     std::string materialName;
 };
@@ -79,19 +81,19 @@ GLuint loadBMPTexture(const char* filename) {
         return 0;
     }
     
-    // Get image info
-    unsigned int dataPos = *(int*)&(header[0x0A]);
-    unsigned int imageSize = *(int*)&(header[0x22]);
-    unsigned int width = *(int*)&(header[0x12]);
-    unsigned int height = *(int*)&(header[0x16]);
+    // Get image info - use proper byte extraction for cross-platform compatibility
+    unsigned int dataPos = (header[0x0D] << 24) | (header[0x0C] << 16) | (header[0x0B] << 8) | header[0x0A];
+    unsigned int imageSize = (header[0x25] << 24) | (header[0x24] << 16) | (header[0x23] << 8) | header[0x22];
+    unsigned int width = (header[0x15] << 24) | (header[0x14] << 16) | (header[0x13] << 8) | header[0x12];
+    unsigned int height = (header[0x19] << 24) | (header[0x18] << 16) | (header[0x17] << 8) | header[0x16];
     
     if (imageSize == 0) imageSize = width * height * 3;
     if (dataPos == 0) dataPos = 54;
     
-    // Read image data
-    unsigned char* data = new unsigned char[imageSize];
+    // Read image data - use vector for automatic memory management
+    std::vector<unsigned char> data(imageSize);
     fseek(file, dataPos, SEEK_SET);
-    fread(data, 1, imageSize, file);
+    fread(&data[0], 1, imageSize, file);
     fclose(file);
     
     // Create OpenGL texture
@@ -100,15 +102,13 @@ GLuint loadBMPTexture(const char* filename) {
     glBindTexture(GL_TEXTURE_2D, textureID);
     
     // Upload texture data (BMP is BGR format)
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_BGR, GL_UNSIGNED_BYTE, data);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_BGR, GL_UNSIGNED_BYTE, &data[0]);
     
     // Set texture parameters
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    
-    delete[] data;
     
     printf("Loaded BMP texture: %s (%dx%d)\n", filename, width, height);
     return textureID;

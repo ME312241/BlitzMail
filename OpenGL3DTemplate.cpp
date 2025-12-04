@@ -69,6 +69,17 @@ Model grassBlockModel;
 // Model loading flags
 bool modelsLoaded = false;
 
+// Model file paths
+const char* MODEL_PATH_TREE = "models/tree/tree1_3ds/Tree1.3ds";
+const char* MODEL_PATH_ROCK1 = "models/1elmla01hh-Rock1_BYTyroSmith/Rock1/Rock1.3ds";
+const char* MODEL_PATH_ROCKSET = "models/xvs3wxwo2o-RockSet_MadeByTyroSmith/RockSet/RockSet.3ds";
+const char* MODEL_PATH_FARMHOUSE = "models/4vd2sk31doow-farmhouse_maya16/Farmhouse Maya 2016 Updated/farmhouse_obj.obj";
+const char* MODEL_PATH_STREETLAMP = "models/s3duldjjt9fk-StreetLampByTyroSmith/Street Lamp/StreetLamp.3ds";
+const char* MODEL_PATH_WHEAT = "models/10458_Wheat_Field_v1_L3.123c5ecd0518-ae16-4fee-bf80-4177de196237/10458_Wheat_Field_v1_L3.123c5ecd0518-ae16-4fee-bf80-4177de196237/10458_Wheat_Field_v1_max2010_it2.obj";
+const char* MODEL_PATH_CARROT = "models/Carrot_v01_l3.123c059c383a-f43b-48c0-b28a-bec318013e17/Carrot_v01_l3.123c059c383a-f43b-48c0-b28a-bec318013e17/10170_Carrot_v01_L3.obj";
+const char* MODEL_PATH_GRASSBLOCK = "models/grass-block/grass-block.3DS";
+const char* MODEL_PATH_TREE_ALT = "models/15od5xhlv2jc-Tree_02/Tree 02/Tree.obj";
+
 // Forward declarations
 void loadAllModels();
 void drawPlayer();
@@ -90,59 +101,62 @@ void updateLampLights();
 void loadAllModels() {
     printf("Loading 3D models...\n");
     
+    // Seed random number generator for model variation
+    srand((unsigned int)time(NULL));
+    
     // Load mailman model (using .blend, but we'll use primitives with enhancements)
     // Note: The mailman model is Player.blend which needs conversion
     // For now, we'll enhance the primitive-based mailman
     
     // Load tree model
-    if (loadModel("models/tree/tree1_3ds/Tree1.3ds", treeModel)) {
+    if (loadModel(MODEL_PATH_TREE, treeModel)) {
         treeModel.scale = 0.02f;
         treeModel.offset = Vector3(0, 0, 0);
     }
     
     // Load rock models
-    if (loadModel("models/1elmla01hh-Rock1_BYTyroSmith/Rock1/Rock1.3ds", rockModel)) {
+    if (loadModel(MODEL_PATH_ROCK1, rockModel)) {
         rockModel.scale = 0.5f;
         rockModel.offset = Vector3(0, 0, 0);
     }
     
-    if (loadModel("models/xvs3wxwo2o-RockSet_MadeByTyroSmith/RockSet/RockSet.3ds", rockSetModel)) {
+    if (loadModel(MODEL_PATH_ROCKSET, rockSetModel)) {
         rockSetModel.scale = 0.3f;
         rockSetModel.offset = Vector3(0, 0, 0);
     }
     
     // Load house model (using OBJ which is available)
-    if (loadModel("models/4vd2sk31doow-farmhouse_maya16/Farmhouse Maya 2016 Updated/farmhouse_obj.obj", houseModel)) {
+    if (loadModel(MODEL_PATH_FARMHOUSE, houseModel)) {
         houseModel.scale = 0.01f;
         houseModel.offset = Vector3(0, 0, 0);
     }
     
     // Load street lamp model
-    if (loadModel("models/s3duldjjt9fk-StreetLampByTyroSmith/Street Lamp/StreetLamp.3ds", streetLampModel)) {
+    if (loadModel(MODEL_PATH_STREETLAMP, streetLampModel)) {
         streetLampModel.scale = 0.05f;
         streetLampModel.offset = Vector3(0, 0, 0);
     }
     
     // Load wheat model
-    if (loadModel("models/10458_Wheat_Field_v1_L3.123c5ecd0518-ae16-4fee-bf80-4177de196237/10458_Wheat_Field_v1_L3.123c5ecd0518-ae16-4fee-bf80-4177de196237/10458_Wheat_Field_v1_max2010_it2.obj", wheatModel)) {
+    if (loadModel(MODEL_PATH_WHEAT, wheatModel)) {
         wheatModel.scale = 0.005f;
         wheatModel.offset = Vector3(0, 0, 0);
     }
     
     // Load carrot model
-    if (loadModel("models/Carrot_v01_l3.123c059c383a-f43b-48c0-b28a-bec318013e17/Carrot_v01_l3.123c059c383a-f43b-48c0-b28a-bec318013e17/10170_Carrot_v01_L3.obj", carrotModel)) {
+    if (loadModel(MODEL_PATH_CARROT, carrotModel)) {
         carrotModel.scale = 0.008f;
         carrotModel.offset = Vector3(0, 0, 0);
     }
     
     // Load grass block model
-    if (loadModel("models/grass-block/grass-block.3DS", grassBlockModel)) {
+    if (loadModel(MODEL_PATH_GRASSBLOCK, grassBlockModel)) {
         grassBlockModel.scale = 0.5f;
         grassBlockModel.offset = Vector3(0, 0, 0);
     }
     
     // Load tree model (alternate)
-    if (loadModel("models/15od5xhlv2jc-Tree_02/Tree 02/Tree.obj", treeModel)) {
+    if (loadModel(MODEL_PATH_TREE_ALT, treeModel)) {
         treeModel.scale = 0.01f;
         treeModel.offset = Vector3(0, 0, 0);
     }
