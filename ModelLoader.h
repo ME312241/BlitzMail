@@ -17,6 +17,11 @@
 #define strcasecmp _stricmp
 #endif
 
+// OpenGL constants that may not be defined in older headers
+#ifndef GL_BGR
+#define GL_BGR 0x80E0
+#endif
+
 // Simple 3DS model structure
 struct Vector3 {
     float x, y, z;
@@ -54,9 +59,70 @@ struct Model {
 };
 
 // Texture loading functions
+GLuint loadBMPTexture(const char* filename) {
+    FILE* file = fopen(filename, "rb");
+    if (!file) {
+        printf("Warning: Could not open BMP file: %s\n", filename);
+        return 0;
+    }
+    
+    // Read BMP header
+    unsigned char header[54];
+    if (fread(header, 1, 54, file) != 54) {
+        fclose(file);
+        return 0;
+    }
+    
+    // Check BMP signature
+    if (header[0] != 'B' || header[1] != 'M') {
+        fclose(file);
+        return 0;
+    }
+    
+    // Get image info
+    unsigned int dataPos = *(int*)&(header[0x0A]);
+    unsigned int imageSize = *(int*)&(header[0x22]);
+    unsigned int width = *(int*)&(header[0x12]);
+    unsigned int height = *(int*)&(header[0x16]);
+    
+    if (imageSize == 0) imageSize = width * height * 3;
+    if (dataPos == 0) dataPos = 54;
+    
+    // Read image data
+    unsigned char* data = new unsigned char[imageSize];
+    fseek(file, dataPos, SEEK_SET);
+    fread(data, 1, imageSize, file);
+    fclose(file);
+    
+    // Create OpenGL texture
+    GLuint textureID;
+    glGenTextures(1, &textureID);
+    glBindTexture(GL_TEXTURE_2D, textureID);
+    
+    // Upload texture data (BMP is BGR format)
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_BGR, GL_UNSIGNED_BYTE, data);
+    
+    // Set texture parameters
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    
+    delete[] data;
+    
+    printf("Loaded BMP texture: %s (%dx%d)\n", filename, width, height);
+    return textureID;
+}
+
 GLuint loadTexture(const char* filename) {
+    // Check file extension
+    const char* ext = strrchr(filename, '.');
+    if (ext && (strcasecmp(ext, ".bmp") == 0)) {
+        return loadBMPTexture(filename);
+    }
+    
+    // For other formats (JPG, PNG), would need additional libraries
     // For now, return 0 (no texture)
-    // In a full implementation, this would load BMP/JPG/PNG files
     return 0;
 }
 
@@ -72,15 +138,132 @@ bool load3DSModel(const char* filename, Model& model) {
     
     // Read basic 3DS structure
     // 3DS files use chunk-based format
-    // For simplicity, we'll create a basic mesh
+    // Main chunk ID: 0x4D4D
+    // Object chunk: 0x4000
+    // Triangle mesh: 0x4100
+    // Vertices: 0x4110
+    // Faces: 0x4120
+    
+    unsigned short chunkID;
+    unsigned int chunkLength;
+    
+    // Read main chunk
+    fread(&chunkID, 2, 1, file);
+    fread(&chunkLength, 4, 1, file);
+    
+    if (chunkID != 0x4D4D) {
+        printf("Warning: Invalid 3DS file format: %s\n", filename);
+        fclose(file);
+        return false;
+    }
+    
+    Mesh mesh;
+    bool hasData = false;
+    
+    // Parse chunks
+    long fileSize = chunkLength;
+    long currentPos = 6; // Already read 6 bytes
+    
+    while (currentPos < fileSize) {
+        fread(&chunkID, 2, 1, file);
+        fread(&chunkLength, 4, 1, file);
+        
+        long nextChunk = currentPos + chunkLength;
+        
+        if (chunkID == 0x4110) { // Vertices list
+            unsigned short numVertices;
+            fread(&numVertices, 2, 1, file);
+            
+            for (int i = 0; i < numVertices; i++) {
+                Vector3 vertex;
+                fread(&vertex.x, 4, 1, file);
+                fread(&vertex.y, 4, 1, file);
+                fread(&vertex.z, 4, 1, file);
+                mesh.vertices.push_back(vertex);
+            }
+            hasData = true;
+        }
+        else if (chunkID == 0x4120) { // Faces description
+            unsigned short numFaces;
+            fread(&numFaces, 2, 1, file);
+            
+            // Store original vertices temporarily
+            std::vector<Vector3> originalVerts = mesh.vertices;
+            mesh.vertices.clear();
+            
+            for (int i = 0; i < numFaces; i++) {
+                unsigned short a, b, c, flags;
+                fread(&a, 2, 1, file);
+                fread(&b, 2, 1, file);
+                fread(&c, 2, 1, file);
+                fread(&flags, 2, 1, file);
+                
+                if (a < originalVerts.size() &&
+                    b < originalVerts.size() &&
+                    c < originalVerts.size()) {
+                    
+                    Vector3 v1 = originalVerts[a];
+                    Vector3 v2 = originalVerts[b];
+                    Vector3 v3 = originalVerts[c];
+                    
+                    // Calculate face normal
+                    Vector3 edge1(v2.x - v1.x, v2.y - v1.y, v2.z - v1.z);
+                    Vector3 edge2(v3.x - v1.x, v3.y - v1.y, v3.z - v1.z);
+                    Vector3 normal(
+                        edge1.y * edge2.z - edge1.z * edge2.y,
+                        edge1.z * edge2.x - edge1.x * edge2.z,
+                        edge1.x * edge2.y - edge1.y * edge2.x
+                    );
+                    
+                    // Normalize
+                    float len = sqrt(normal.x * normal.x + normal.y * normal.y + normal.z * normal.z);
+                    if (len > 0.0001f) {
+                        normal.x /= len;
+                        normal.y /= len;
+                        normal.z /= len;
+                    }
+                    
+                    // Add expanded vertices and normals
+                    mesh.vertices.push_back(v1);
+                    mesh.vertices.push_back(v2);
+                    mesh.vertices.push_back(v3);
+                    
+                    mesh.normals.push_back(normal);
+                    mesh.normals.push_back(normal);
+                    mesh.normals.push_back(normal);
+                }
+            }
+            
+            hasData = true;
+        }
+        else if (chunkID == 0x4140) { // Texture coordinates
+            unsigned short numCoords;
+            fread(&numCoords, 2, 1, file);
+            
+            for (int i = 0; i < numCoords; i++) {
+                Vector2 texCoord;
+                fread(&texCoord.u, 4, 1, file);
+                fread(&texCoord.v, 4, 1, file);
+                mesh.texCoords.push_back(texCoord);
+            }
+        }
+        
+        // Seek to next chunk
+        fseek(file, nextChunk, SEEK_SET);
+        currentPos = nextChunk;
+    }
+    
     fclose(file);
     
-    // Create a simple placeholder mesh
-    Mesh mesh;
-    model.meshes.push_back(mesh);
+    if (hasData && mesh.vertices.size() > 0) {
+        model.meshes.push_back(mesh);
+        printf("Loaded 3DS model: %s (%d vertices)\n", filename, (int)mesh.vertices.size());
+        return true;
+    }
     
-    printf("Loaded 3DS model: %s (using placeholder geometry)\n", filename);
-    return true;
+    // Create a simple placeholder mesh if parsing failed
+    printf("Warning: 3DS file loaded but no geometry found: %s\n", filename);
+    return false;
 }
 
 // Simple OBJ loader
