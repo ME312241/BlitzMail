@@ -84,6 +84,9 @@
   <ItemGroup>
     <ClCompile Include="OpenGL3DTemplate.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="ModelLoader.h" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

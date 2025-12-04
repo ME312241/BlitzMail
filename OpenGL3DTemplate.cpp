@@ -1,9 +1,14 @@
+#ifdef _WIN32
 #include <glut.h>
+#else
+#include <GL/glut.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
 #include <time.h>
+#include "ModelLoader.h"
 
 // Constants
 #define PI 3.14159265359f
@@ -48,7 +53,35 @@ Package packages[5] = {
     {25.0f, 0.5f, -15.0f, false}
 };
 
+// 3D Models
+Model mailmanModel;
+Model treeModel;
+Model fenceModel;
+Model rockModel;
+Model rockSetModel;
+Model houseModel;
+Model cottageModel;
+Model streetLampModel;
+Model wheatModel;
+Model carrotModel;
+Model grassBlockModel;
+
+// Model loading flags
+bool modelsLoaded = false;
+
+// Model file paths
+const char* MODEL_PATH_TREE = "models/tree/tree1_3ds/Tree1.3ds";
+const char* MODEL_PATH_ROCK1 = "models/1elmla01hh-Rock1_BYTyroSmith/Rock1/Rock1.3ds";
+const char* MODEL_PATH_ROCKSET = "models/xvs3wxwo2o-RockSet_MadeByTyroSmith/RockSet/RockSet.3ds";
+const char* MODEL_PATH_FARMHOUSE = "models/4vd2sk31doow-farmhouse_maya16/Farmhouse Maya 2016 Updated/farmhouse_obj.obj";
+const char* MODEL_PATH_STREETLAMP = "models/s3duldjjt9fk-StreetLampByTyroSmith/Street Lamp/StreetLamp.3ds";
+const char* MODEL_PATH_WHEAT = "models/10458_Wheat_Field_v1_L3.123c5ecd0518-ae16-4fee-bf80-4177de196237/10458_Wheat_Field_v1_L3.123c5ecd0518-ae16-4fee-bf80-4177de196237/10458_Wheat_Field_v1_max2010_it2.obj";
+const char* MODEL_PATH_CARROT = "models/Carrot_v01_l3.123c059c383a-f43b-48c0-b28a-bec318013e17/Carrot_v01_l3.123c059c383a-f43b-48c0-b28a-bec318013e17/10170_Carrot_v01_L3.obj";
+const char* MODEL_PATH_GRASSBLOCK = "models/grass-block/grass-block.3DS";
+const char* MODEL_PATH_TREE_ALT = "models/15od5xhlv2jc-Tree_02/Tree 02/Tree.obj";
+
 // Forward declarations
+void loadAllModels();
 void drawPlayer();
 void drawMailBag();
 void drawTerrain();
@@ -64,11 +97,72 @@ void setupLighting();
 void updateSunLight();
 void updateLampLights();
 
-// Simple OBJ loader placeholder (using primitives instead due to complexity)
-// TODO: Implement actual OBJ/3DS model loading for production use
-void loadModel(const char* filename) {
-    // In a full implementation, this would parse OBJ files
-    // For this template, we'll use OpenGL primitives styled like models
+// Load all 3DS models from the models directory
+void loadAllModels() {
+    printf("Loading 3D models...\n");
+    
+    // Seed random number generator for model variation
+    srand((unsigned int)time(NULL));
+    
+    // Load mailman model (using .blend, but we'll use primitives with enhancements)
+    // Note: The mailman model is Player.blend which needs conversion
+    // For now, we'll enhance the primitive-based mailman
+    
+    // Load tree model
+    if (loadModel(MODEL_PATH_TREE, treeModel)) {
+        treeModel.scale = 0.02f;
+        treeModel.offset = Vector3(0, 0, 0);
+    }
+    
+    // Load rock models
+    if (loadModel(MODEL_PATH_ROCK1, rockModel)) {
+        rockModel.scale = 0.5f;
+        rockModel.offset = Vector3(0, 0, 0);
+    }
+    
+    if (loadModel(MODEL_PATH_ROCKSET, rockSetModel)) {
+        rockSetModel.scale = 0.3f;
+        rockSetModel.offset = Vector3(0, 0, 0);
+    }
+    
+    // Load house model (using OBJ which is available)
+    if (loadModel(MODEL_PATH_FARMHOUSE, houseModel)) {
+        houseModel.scale = 0.01f;
+        houseModel.offset = Vector3(0, 0, 0);
+    }
+    
+    // Load street lamp model
+    if (loadModel(MODEL_PATH_STREETLAMP, streetLampModel)) {
+        streetLampModel.scale = 0.05f;
+        streetLampModel.offset = Vector3(0, 0, 0);
+    }
+    
+    // Load wheat model
+    if (loadModel(MODEL_PATH_WHEAT, wheatModel)) {
+        wheatModel.scale = 0.005f;
+        wheatModel.offset = Vector3(0, 0, 0);
+    }
+    
+    // Load carrot model
+    if (loadModel(MODEL_PATH_CARROT, carrotModel)) {
+        carrotModel.scale = 0.008f;
+        carrotModel.offset = Vector3(0, 0, 0);
+    }
+    
+    // Load grass block model
+    if (loadModel(MODEL_PATH_GRASSBLOCK, grassBlockModel)) {
+        grassBlockModel.scale = 0.5f;
+        grassBlockModel.offset = Vector3(0, 0, 0);
+    }
+    
+    // Load tree model (alternate)
+    if (loadModel(MODEL_PATH_TREE_ALT, treeModel)) {
+        treeModel.scale = 0.01f;
+        treeModel.offset = Vector3(0, 0, 0);
+    }
+    
+    modelsLoaded = true;
+    printf("Models loaded successfully!\n");
 }
 
 void drawPlayer() {
@@ -134,6 +228,21 @@ void drawPlayer() {
     glutSolidSphere(0.3f, 20, 20);
     glPopMatrix();
     
+    // Cap visor
+    glPushMatrix();
+    glTranslatef(0, 1.75f, 0.3f);
+    glScalef(0.35f, 0.05f, 0.2f);
+    glutSolidCube(1.0f);
+    glPopMatrix();
+    
+    // Postal badge on chest
+    glColor3f(0.9f, 0.8f, 0.1f); // Gold badge
+    glPushMatrix();
+    glTranslatef(0, 1.0f, 0.21f);
+    glScalef(0.15f, 0.15f, 0.02f);
+    glutSolidCube(1.0f);
+    glPopMatrix();
+    
     glPopMatrix();
 }
 
@@ -148,12 +257,47 @@ void drawMailBag() {
     glutSolidCube(1.0f);
     glPopMatrix();
     
+    // Bag flap
+    glColor3f(0.55f, 0.35f, 0.15f);
+    glPushMatrix();
+    glTranslatef(0, 0.26f, 0.05f);
+    glRotatef(-10, 1, 0, 0);
+    glScalef(0.42f, 0.08f, 0.22f);
+    glutSolidCube(1.0f);
+    glPopMatrix();
+    
     // Bag strap
     glColor3f(0.5f, 0.3f, 0.1f);
     glPushMatrix();
     glTranslatef(-0.2f, 0.3f, 0);
     glRotatef(45, 0, 0, 1);
     glScalef(0.05f, 0.8f, 0.05f);
+    glutSolidCube(1.0f);
+    glPopMatrix();
+    
+    // Metal buckle on strap
+    glColor3f(0.7f, 0.7f, 0.7f);
+    glPushMatrix();
+    glTranslatef(-0.1f, 0.6f, 0);
+    glScalef(0.08f, 0.08f, 0.03f);
+    glutSolidCube(1.0f);
+    glPopMatrix();
+    
+    // Letters/envelopes sticking out of bag
+    glColor3f(0.95f, 0.95f, 0.9f); // White paper
+    // Envelope 1
+    glPushMatrix();
+    glTranslatef(-0.05f, 0.15f, 0.1f);
+    glRotatef(15, 0, 0, 1);
+    glScalef(0.15f, 0.2f, 0.02f);
+    glutSolidCube(1.0f);
+    glPopMatrix();
+    
+    // Envelope 2
+    glPushMatrix();
+    glTranslatef(0.05f, 0.18f, 0.12f);
+    glRotatef(-10, 0, 0, 1);
+    glScalef(0.12f, 0.18f, 0.02f);
     glutSolidCube(1.0f);
     glPopMatrix();
     
@@ -194,43 +338,52 @@ void drawHouse(float x, float z, float scale) {
     glTranslatef(x, 0, z);
     glScalef(scale, scale, scale);
     
-    // House base
-    glColor3f(0.8f, 0.7f, 0.6f); // Beige walls
-    glPushMatrix();
-    glTranslatef(0, 2.5f, 0);
-    glScalef(4.0f, 3.0f, 4.0f);
-    glutSolidCube(1.0f);
-    glPopMatrix();
-    
-    // Roof
-    glColor3f(0.6f, 0.2f, 0.1f); // Red roof
-    glPushMatrix();
-    glTranslatef(0, 4.5f, 0);
-    glRotatef(-90, 1, 0, 0);
-    glutSolidCone(3.0f, 2.0f, 4, 10);
-    glPopMatrix();
-    
-    // Door
-    glColor3f(0.4f, 0.2f, 0.1f);
-    glPushMatrix();
-    glTranslatef(0, 1.0f, 2.01f);
-    glScalef(0.8f, 1.5f, 0.1f);
-    glutSolidCube(1.0f);
-    glPopMatrix();
-    
-    // Windows
-    glColor3f(0.6f, 0.8f, 1.0f); // Blue windows
-    glPushMatrix();
-    glTranslatef(-1.0f, 2.5f, 2.01f);
-    glScalef(0.6f, 0.6f, 0.05f);
-    glutSolidCube(1.0f);
-    glPopMatrix();
-    
-    glPushMatrix();
-    glTranslatef(1.0f, 2.5f, 2.01f);
-    glScalef(0.6f, 0.6f, 0.05f);
-    glutSolidCube(1.0f);
-    glPopMatrix();
+    // Try to use loaded model
+    if (modelsLoaded && houseModel.meshes.size() > 0) {
+        glPushMatrix();
+        glScalef(3.0f, 3.0f, 3.0f);
+        renderModel(houseModel);
+        glPopMatrix();
+    } else {
+        // Fallback to primitives
+        // House base
+        glColor3f(0.8f, 0.7f, 0.6f); // Beige walls
+        glPushMatrix();
+        glTranslatef(0, 2.5f, 0);
+        glScalef(4.0f, 3.0f, 4.0f);
+        glutSolidCube(1.0f);
+        glPopMatrix();
+        
+        // Roof
+        glColor3f(0.6f, 0.2f, 0.1f); // Red roof
+        glPushMatrix();
+        glTranslatef(0, 4.5f, 0);
+        glRotatef(-90, 1, 0, 0);
+        glutSolidCone(3.0f, 2.0f, 4, 10);
+        glPopMatrix();
+        
+        // Door
+        glColor3f(0.4f, 0.2f, 0.1f);
+        glPushMatrix();
+        glTranslatef(0, 1.0f, 2.01f);
+        glScalef(0.8f, 1.5f, 0.1f);
+        glutSolidCube(1.0f);
+        glPopMatrix();
+        
+        // Windows
+        glColor3f(0.6f, 0.8f, 1.0f); // Blue windows
+        glPushMatrix();
+        glTranslatef(-1.0f, 2.5f, 2.01f);
+        glScalef(0.6f, 0.6f, 0.05f);
+        glutSolidCube(1.0f);
+        glPopMatrix();
+        
+        glPushMatrix();
+        glTranslatef(1.0f, 2.5f, 2.01f);
+        glScalef(0.6f, 0.6f, 0.05f);
+        glutSolidCube(1.0f);
+        glPopMatrix();
+    }
     
     glPopMatrix();
 }
@@ -239,29 +392,38 @@ void drawTree(float x, float z, float height) {
     glPushMatrix();
     glTranslatef(x, 0, z);
     
-    // Trunk
-    glColor3f(0.4f, 0.25f, 0.1f); // Brown
-    glPushMatrix();
-    glTranslatef(0, height * 0.3f, 0);
-    glRotatef(-90, 1, 0, 0);
-    GLUquadric* quad = gluNewQuadric();
-    if (quad) {
-        gluCylinder(quad, 0.3f, 0.5f, height * 0.6f, 10, 10);
-        gluDeleteQuadric(quad);
+    // Try to use loaded model
+    if (modelsLoaded && treeModel.meshes.size() > 0) {
+        glPushMatrix();
+        glScalef(height / 4.0f, height / 4.0f, height / 4.0f);
+        renderModel(treeModel);
+        glPopMatrix();
+    } else {
+        // Fallback to primitives
+        // Trunk
+        glColor3f(0.4f, 0.25f, 0.1f); // Brown
+        glPushMatrix();
+        glTranslatef(0, height * 0.3f, 0);
+        glRotatef(-90, 1, 0, 0);
+        GLUquadric* quad = gluNewQuadric();
+        if (quad) {
+            gluCylinder(quad, 0.3f, 0.5f, height * 0.6f, 10, 10);
+            gluDeleteQuadric(quad);
+        }
+        glPopMatrix();
+        
+        // Foliage
+        glColor3f(0.1f, 0.5f, 0.1f); // Dark green
+        glPushMatrix();
+        glTranslatef(0, height * 0.7f, 0);
+        glutSolidSphere(height * 0.4f, 15, 15);
+        glPopMatrix();
+        
+        glPushMatrix();
+        glTranslatef(0, height * 0.85f, 0);
+        glutSolidSphere(height * 0.35f, 15, 15);
+        glPopMatrix();
     }
-    glPopMatrix();
-    
-    // Foliage
-    glColor3f(0.1f, 0.5f, 0.1f); // Dark green
-    glPushMatrix();
-    glTranslatef(0, height * 0.7f, 0);
-    glutSolidSphere(height * 0.4f, 15, 15);
-    glPopMatrix();
-    
-    glPushMatrix();
-    glTranslatef(0, height * 0.85f, 0);
-    glutSolidSphere(height * 0.35f, 15, 15);
-    glPopMatrix();
     
     glPopMatrix();
 }
@@ -301,13 +463,38 @@ void drawFence(float x, float z, float length, float rotation) {
 void drawRock(float x, float z, float size) {
     glPushMatrix();
     glTranslatef(x, size * 0.3f, z);
-    glColor3f(0.5f, 0.5f, 0.5f); // Gray
     
-    // Irregular rock shape
-    glPushMatrix();
-    glScalef(size, size * 0.6f, size * 0.8f);
-    glutSolidSphere(1.0f, 8, 8);
-    glPopMatrix();
+    // Try to use loaded model
+    bool modelRendered = false;
+    if (modelsLoaded) {
+        // Select between rock models if both are available
+        Model* selectedModel = NULL;
+        if (rockModel.meshes.size() > 0 && rockSetModel.meshes.size() > 0) {
+            // Use position-based deterministic selection for consistency
+            selectedModel = ((int)(x + z) % 2 == 0) ? &rockModel : &rockSetModel;
+        } else if (rockModel.meshes.size() > 0) {
+            selectedModel = &rockModel;
+        } else if (rockSetModel.meshes.size() > 0) {
+            selectedModel = &rockSetModel;
+        }
+        
+        if (selectedModel) {
+            glPushMatrix();
+            glScalef(size, size, size);
+            renderModel(*selectedModel);
+            glPopMatrix();
+            modelRendered = true;
+        }
+    }
+    
+    if (!modelRendered) {
+        // Fallback to primitive
+        glColor3f(0.5f, 0.5f, 0.5f); // Gray
+        glPushMatrix();
+        glScalef(size, size * 0.6f, size * 0.8f);
+        glutSolidSphere(1.0f, 8, 8);
+        glPopMatrix();
+    }
     
     glPopMatrix();
 }
@@ -316,15 +503,36 @@ void drawCrop(float x, float z) {
     glPushMatrix();
     glTranslatef(x, 0, z);
     
-    // Wheat/carrot stalks
-    glColor3f(0.8f, 0.7f, 0.2f); // Golden wheat
-    for (int i = -2; i <= 2; i++) {
-        for (int j = -2; j <= 2; j++) {
-            glPushMatrix();
-            glTranslatef(i * 0.3f, 0.3f, j * 0.3f);
-            glScalef(0.05f, 0.6f, 0.05f);
-            glutSolidCube(1.0f);
-            glPopMatrix();
+    // Try to use loaded models (wheat or carrot)
+    bool modelRendered = false;
+    if (modelsLoaded) {
+        // Select between wheat and carrot based on position for deterministic placement
+        Model* selectedModel = NULL;
+        if (wheatModel.meshes.size() > 0 && carrotModel.meshes.size() > 0) {
+            selectedModel = ((int)(x + z) % 2 == 0) ? &wheatModel : &carrotModel;
+        } else if (wheatModel.meshes.size() > 0) {
+            selectedModel = &wheatModel;
+        } else if (carrotModel.meshes.size() > 0) {
+            selectedModel = &carrotModel;
+        }
+        
+        if (selectedModel) {
+            renderModel(*selectedModel);
+            modelRendered = true;
+        }
+    }
+    
+    if (!modelRendered) {
+        // Fallback to primitives - Wheat/carrot stalks
+        glColor3f(0.8f, 0.7f, 0.2f); // Golden wheat
+        for (int i = -2; i <= 2; i++) {
+            for (int j = -2; j <= 2; j++) {
+                glPushMatrix();
+                glTranslatef(i * 0.3f, 0.3f, j * 0.3f);
+                glScalef(0.05f, 0.6f, 0.05f);
+                glutSolidCube(1.0f);
+                glPopMatrix();
+            }
         }
     }
     
@@ -335,44 +543,50 @@ void drawGrassBlock(float x, float z) {
     glPushMatrix();
     glTranslatef(x, 0.5f, z);
     
-    // Top (grass)
-    glColor3f(0.3f, 0.7f, 0.3f);
-    glBegin(GL_QUADS);
-    glNormal3f(0, 1, 0);
-    glVertex3f(-0.5f, 0.5f, -0.5f);
-    glVertex3f(0.5f, 0.5f, -0.5f);
-    glVertex3f(0.5f, 0.5f, 0.5f);
-    glVertex3f(-0.5f, 0.5f, 0.5f);
-    glEnd();
-    
-    // Sides (dirt)
-    glColor3f(0.55f, 0.4f, 0.3f);
-    glBegin(GL_QUADS);
-    // Front
-    glNormal3f(0, 0, 1);
-    glVertex3f(-0.5f, -0.5f, 0.5f);
-    glVertex3f(0.5f, -0.5f, 0.5f);
-    glVertex3f(0.5f, 0.5f, 0.5f);
-    glVertex3f(-0.5f, 0.5f, 0.5f);
-    // Back
-    glNormal3f(0, 0, -1);
-    glVertex3f(-0.5f, -0.5f, -0.5f);
-    glVertex3f(-0.5f, 0.5f, -0.5f);
-    glVertex3f(0.5f, 0.5f, -0.5f);
-    glVertex3f(0.5f, -0.5f, -0.5f);
-    // Left
-    glNormal3f(-1, 0, 0);
-    glVertex3f(-0.5f, -0.5f, -0.5f);
-    glVertex3f(-0.5f, -0.5f, 0.5f);
-    glVertex3f(-0.5f, 0.5f, 0.5f);
-    glVertex3f(-0.5f, 0.5f, -0.5f);
-    // Right
-    glNormal3f(1, 0, 0);
-    glVertex3f(0.5f, -0.5f, -0.5f);
-    glVertex3f(0.5f, 0.5f, -0.5f);
-    glVertex3f(0.5f, 0.5f, 0.5f);
-    glVertex3f(0.5f, -0.5f, 0.5f);
-    glEnd();
+    // Try to use loaded model
+    if (modelsLoaded && grassBlockModel.meshes.size() > 0) {
+        renderModel(grassBlockModel);
+    } else {
+        // Fallback to primitives
+        // Top (grass)
+        glColor3f(0.3f, 0.7f, 0.3f);
+        glBegin(GL_QUADS);
+        glNormal3f(0, 1, 0);
+        glVertex3f(-0.5f, 0.5f, -0.5f);
+        glVertex3f(0.5f, 0.5f, -0.5f);
+        glVertex3f(0.5f, 0.5f, 0.5f);
+        glVertex3f(-0.5f, 0.5f, 0.5f);
+        glEnd();
+        
+        // Sides (dirt)
+        glColor3f(0.55f, 0.4f, 0.3f);
+        glBegin(GL_QUADS);
+        // Front
+        glNormal3f(0, 0, 1);
+        glVertex3f(-0.5f, -0.5f, 0.5f);
+        glVertex3f(0.5f, -0.5f, 0.5f);
+        glVertex3f(0.5f, 0.5f, 0.5f);
+        glVertex3f(-0.5f, 0.5f, 0.5f);
+        // Back
+        glNormal3f(0, 0, -1);
+        glVertex3f(-0.5f, -0.5f, -0.5f);
+        glVertex3f(-0.5f, 0.5f, -0.5f);
+        glVertex3f(0.5f, 0.5f, -0.5f);
+        glVertex3f(0.5f, -0.5f, -0.5f);
+        // Left
+        glNormal3f(-1, 0, 0);
+        glVertex3f(-0.5f, -0.5f, -0.5f);
+        glVertex3f(-0.5f, -0.5f, 0.5f);
+        glVertex3f(-0.5f, 0.5f, 0.5f);
+        glVertex3f(-0.5f, 0.5f, -0.5f);
+        // Right
+        glNormal3f(1, 0, 0);
+        glVertex3f(0.5f, -0.5f, -0.5f);
+        glVertex3f(0.5f, 0.5f, -0.5f);
+        glVertex3f(0.5f, 0.5f, 0.5f);
+        glVertex3f(0.5f, -0.5f, 0.5f);
+        glEnd();
+    }
     
     glPopMatrix();
 }
@@ -381,41 +595,49 @@ void drawStreetLamp(float x, float z) {
     glPushMatrix();
     glTranslatef(x, 0, z);
     
-    // Lamp post
-    glColor3f(0.2f, 0.2f, 0.2f); // Dark gray metal
-    glPushMatrix();
-    glTranslatef(0, 2.5f, 0);
-    glRotatef(-90, 1, 0, 0);
-    GLUquadric* quad = gluNewQuadric();
-    if (quad) {
-        gluCylinder(quad, 0.1f, 0.15f, 5.0f, 12, 12);
-        gluDeleteQuadric(quad);
-    }
-    glPopMatrix();
-    
-    // Lamp head
-    glPushMatrix();
-    glTranslatef(0, 5.0f, 0);
-    
-    // Lamp housing
-    glColor3f(0.3f, 0.3f, 0.3f);
-    glPushMatrix();
-    glScalef(0.6f, 0.4f, 0.6f);
-    glutSolidCube(1.0f);
-    glPopMatrix();
-    
-    // Light bulb (glowing effect)
-    if (sunAngle > 90 && sunAngle < 270) { // Night time
-        glColor3f(1.0f, 1.0f, 0.9f + lampFlicker * 0.1f); // White with flicker
+    // Try to use loaded model
+    if (modelsLoaded && streetLampModel.meshes.size() > 0) {
+        glPushMatrix();
+        renderModel(streetLampModel);
+        glPopMatrix();
     } else {
-        glColor3f(0.9f, 0.9f, 0.8f); // Dim during day
+        // Fallback to primitives
+        // Lamp post
+        glColor3f(0.2f, 0.2f, 0.2f); // Dark gray metal
+        glPushMatrix();
+        glTranslatef(0, 2.5f, 0);
+        glRotatef(-90, 1, 0, 0);
+        GLUquadric* quad = gluNewQuadric();
+        if (quad) {
+            gluCylinder(quad, 0.1f, 0.15f, 5.0f, 12, 12);
+            gluDeleteQuadric(quad);
+        }
+        glPopMatrix();
+        
+        // Lamp head
+        glPushMatrix();
+        glTranslatef(0, 5.0f, 0);
+        
+        // Lamp housing
+        glColor3f(0.3f, 0.3f, 0.3f);
+        glPushMatrix();
+        glScalef(0.6f, 0.4f, 0.6f);
+        glutSolidCube(1.0f);
+        glPopMatrix();
+        
+        // Light bulb (glowing effect)
+        if (sunAngle > 90 && sunAngle < 270) { // Night time
+            glColor3f(1.0f, 1.0f, 0.9f + lampFlicker * 0.1f); // White with flicker
+        } else {
+            glColor3f(0.9f, 0.9f, 0.8f); // Dim during day
+        }
+        glPushMatrix();
+        glTranslatef(0, -0.3f, 0);
+        glutSolidSphere(0.2f, 12, 12);
+        glPopMatrix();
+        
+        glPopMatrix();
     }
-    glPushMatrix();
-    glTranslatef(0, -0.3f, 0);
-    glutSolidSphere(0.2f, 12, 12);
-    glPopMatrix();
-    
-    glPopMatrix();
     
     glPopMatrix();
 }
@@ -836,7 +1058,7 @@ void Reshape(int width, int height) {
     glMatrixMode(GL_MODELVIEW);
 }
 
-void main(int argc, char** argv) {
+int main(int argc, char** argv) {
     glutInit(&argc, argv);
     
     glutInitWindowSize(800, 600);
@@ -863,6 +1085,9 @@ void main(int argc, char** argv) {
     // Set up lighting
     setupLighting();
     
+    // Load 3D models
+    loadAllModels();
+    
     printf("BlitzMail - Rural Level Scene\n");
     printf("Controls:\n");
     printf("  WASD - Move\n");
@@ -874,4 +1099,6 @@ void main(int argc, char** argv) {
     printf("\nCollect all %d packages!\n", TOTAL_PACKAGES);
     
     glutMainLoop();
+    
+    return 0;
 }
