@@ -109,11 +109,21 @@ This implementation creates a comprehensive rural level scene for the BlitzMail 
 ## Technical Details
 
 ### Model Loading
-While the problem statement mentions loading OBJ/3DS files, this implementation uses OpenGL primitives (cubes, spheres, cylinders, cones) to represent all objects. This approach:
-- Ensures compatibility without external model loading libraries
-- Provides immediate visual feedback
-- Can be easily replaced with actual model loading code
-- Maintains the visual style and proportions of the intended models
+The implementation now includes a comprehensive model loading system through ModelLoader.h:
+- **OBJ Format Support**: Full Wavefront OBJ parsing with vertices, normals, and texture coordinates
+- **.3DS Format Support**: Chunk-based 3DS file parsing with automatic normal calculation
+- **Texture Loading**: BMP texture loading with OpenGL texture binding
+- **Fallback Rendering**: Automatic fallback to OpenGL primitives if models fail to load
+- The system attempts to load actual 3D models from the models/ directory:
+  - Tree models (Tree1.3ds)
+  - Rock models (Rock1.3ds, RockSet.3ds)
+  - House models (farmhouse_obj.obj)
+  - Street lamps (StreetLamp.3ds)
+  - Crop models (wheat and carrot .obj files)
+  - Grass blocks (grass-block.3DS)
+- When models are available, they are rendered with proper scaling and positioning
+- When models are unavailable or fail to load, the system uses OpenGL primitives (cubes, spheres, cylinders) styled to represent the intended models
+- See MODEL_LOADING_GUIDE.md for detailed information on the model loading system
 
 ### Performance Optimization
 - Static scene elements are drawn each frame (no display lists in this implementation)
@@ -172,8 +182,21 @@ ESC          - Exit
 - C++ compiler with C++98 or later support
 
 ## Future Enhancements
+- Integration with lib3ds library for more complete .3DS support
+  - The current implementation provides a basic .3DS parser that handles common chunks
+  - For production use, integrating lib3ds would provide full .3DS format support including:
+    - Material definitions and properties
+    - Multiple objects per file
+    - Hierarchical transformations
+    - Animation data
+    - Camera and light information
+  - lib3ds is available as a C library: https://github.com/AlexMarlo/lib3ds
+  - On Linux: `sudo apt-get install lib3ds-dev`
+  - On Windows: lib3ds binaries would need to be included in the project
+- Enhanced texture loading with stb_image or SOIL for JPG/PNG support
 - Actual OBJ/3DS model loading
 - Texture mapping from texture files
+- Material system with MTL file parsing
 - Collision detection with buildings and obstacles
 - More complex player animations
 - Additional collectible types
