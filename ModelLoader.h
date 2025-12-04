@@ -22,6 +22,25 @@
 #define GL_BGR 0x80E0
 #endif
 
+// Helper functions for endian conversion (3DS and BMP use little-endian)
+inline unsigned short readLittleEndianShort(FILE* file) {
+    unsigned char bytes[2];
+    fread(bytes, 1, 2, file);
+    return bytes[0] | (bytes[1] << 8);
+}
+
+inline unsigned int readLittleEndianInt(FILE* file) {
+    unsigned char bytes[4];
+    fread(bytes, 1, 4, file);
+    return bytes[0] | (bytes[1] << 8) | (bytes[2] << 16) | (bytes[3] << 24);
+}
+
+inline float readLittleEndianFloat(FILE* file) {
+    union { float f; unsigned int i; } u;
+    u.i = readLittleEndianInt(file);
+    return u.f;
+}
+
 // Simple 3DS model structure
 struct Vector3 {
     float x, y, z;
@@ -81,11 +100,11 @@ GLuint loadBMPTexture(const char* filename) {
         return 0;
     }
     
-    // Get image info - use proper byte extraction for cross-platform compatibility
-    unsigned int dataPos = (header[0x0D] << 24) | (header[0x0C] << 16) | (header[0x0B] << 8) | header[0x0A];
-    unsigned int imageSize = (header[0x25] << 24) | (header[0x24] << 16) | (header[0x23] << 8) | header[0x22];
-    unsigned int width = (header[0x15] << 24) | (header[0x14] << 16) | (header[0x13] << 8) | header[0x12];
-    unsigned int height = (header[0x19] << 24) | (header[0x18] << 16) | (header[0x17] << 8) | header[0x16];
+    // Get image info - BMP files use little-endian byte order
+    unsigned int dataPos = header[0x0A] | (header[0x0B] << 8) | (header[0x0C] << 16) | (header[0x0D] << 24);
+    unsigned int imageSize = header[0x22] | (header[0x23] << 8) | (header[0x24] << 16) | (header[0x25] << 24);
+    unsigned int width = header[0x12] | (header[0x13] << 8) | (header[0x14] << 16) | (header[0x15] << 24);
+    unsigned int height = header[0x16] | (header[0x17] << 8) | (header[0x18] << 16) | (header[0x19] << 24);
     
     if (imageSize == 0) imageSize = width * height * 3;
     if (dataPos == 0) dataPos = 54;
@@ -137,19 +156,16 @@ bool load3DSModel(const char* filename, Model& model) {
     }
     
     // Read basic 3DS structure
-    // 3DS files use chunk-based format
+    // 3DS files use chunk-based format with little-endian byte order
     // Main chunk ID: 0x4D4D
     // Object chunk: 0x4000
     // Triangle mesh: 0x4100
     // Vertices: 0x4110
     // Faces: 0x4120
     
-    unsigned short chunkID;
-    unsigned int chunkLength;
-    
     // Read main chunk
-    fread(&chunkID, 2, 1, file);
-    fread(&chunkLength, 4, 1, file);
+    unsigned short chunkID = readLittleEndianShort(file);
+    unsigned int chunkLength = readLittleEndianInt(file);
     
     if (chunkID != 0x4D4D) {
         printf("Warning: Invalid 3DS file format: %s\n", filename);
@@ -165,38 +181,35 @@ bool load3DSModel(const char* filename, Model& model) {
     long currentPos = 6; // Already read 6 bytes
     
     while (currentPos < fileSize) {
-        fread(&chunkID, 2, 1, file);
-        fread(&chunkLength, 4, 1, file);
+        chunkID = readLittleEndianShort(file);
+        chunkLength = readLittleEndianInt(file);
         
         long nextChunk = currentPos + chunkLength;
         
         if (chunkID == 0x4110) { // Vertices list
-            unsigned short numVertices;
-            fread(&numVertices, 2, 1, file);
+            unsigned short numVertices = readLittleEndianShort(file);
             
             for (int i = 0; i < numVertices; i++) {
                 Vector3 vertex;
-                fread(&vertex.x, 4, 1, file);
-                fread(&vertex.y, 4, 1, file);
-                fread(&vertex.z, 4, 1, file);
+                vertex.x = readLittleEndianFloat(file);
+                vertex.y = readLittleEndianFloat(file);
+                vertex.z = readLittleEndianFloat(file);
                 mesh.vertices.push_back(vertex);
             }
             hasData = true;
         }
         else if (chunkID == 0x4120) { // Faces description
-            unsigned short numFaces;
-            fread(&numFaces, 2, 1, file);
+            unsigned short numFaces = readLittleEndianShort(file);
             
             // Store original vertices temporarily
             std::vector<Vector3> originalVerts = mesh.vertices;
             mesh.vertices.clear();
             
             for (int i = 0; i < numFaces; i++) {
-                unsigned short a, b, c, flags;
-                fread(&a, 2, 1, file);
-                fread(&b, 2, 1, file);
-                fread(&c, 2, 1, file);
-                fread(&flags, 2, 1, file);
+                unsigned short a = readLittleEndianShort(file);
+                unsigned short b = readLittleEndianShort(file);
+                unsigned short c = readLittleEndianShort(file);
+                unsigned short flags = readLittleEndianShort(file);
                 
                 if (a < originalVerts.size() &&
                     b < originalVerts.size() &&
@@ -237,13 +250,12 @@ bool load3DSModel(const char* filename, Model& model) {
             hasData = true;
         }
         else if (chunkID == 0x4140) { // Texture coordinates
-            unsigned short numCoords;
-            fread(&numCoords, 2, 1, file);
+            unsigned short numCoords = readLittleEndianShort(file);
             
             for (int i = 0; i < numCoords; i++) {
                 Vector2 texCoord;
-                fread(&texCoord.u, 4, 1, file);
-                fread(&texCoord.v, 4, 1, file);
+                texCoord.u = readLittleEndianFloat(file);
+                texCoord.v = readLittleEndianFloat(file);
                 mesh.texCoords.push_back(texCoord);
             }
         }

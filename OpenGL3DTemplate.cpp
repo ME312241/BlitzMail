@@ -465,22 +465,29 @@ void drawRock(float x, float z, float size) {
     glTranslatef(x, size * 0.3f, z);
     
     // Try to use loaded model
-    if (modelsLoaded && (rockModel.meshes.size() > 0 || rockSetModel.meshes.size() > 0)) {
-        Model& model = (rand() % 2 == 0) ? rockModel : rockSetModel;
-        if (model.meshes.size() > 0) {
+    bool modelRendered = false;
+    if (modelsLoaded) {
+        // Select between rock models if both are available
+        Model* selectedModel = NULL;
+        if (rockModel.meshes.size() > 0 && rockSetModel.meshes.size() > 0) {
+            // Use position-based deterministic selection for consistency
+            selectedModel = ((int)(x + z) % 2 == 0) ? &rockModel : &rockSetModel;
+        } else if (rockModel.meshes.size() > 0) {
+            selectedModel = &rockModel;
+        } else if (rockSetModel.meshes.size() > 0) {
+            selectedModel = &rockSetModel;
+        }
+        
+        if (selectedModel) {
             glPushMatrix();
             glScalef(size, size, size);
-            renderModel(model);
+            renderModel(*selectedModel);
             glPopMatrix();
-        } else {
-            // Fallback to primitive
-            glColor3f(0.5f, 0.5f, 0.5f); // Gray
-            glPushMatrix();
-            glScalef(size, size * 0.6f, size * 0.8f);
-            glutSolidSphere(1.0f, 8, 8);
-            glPopMatrix();
+            modelRendered = true;
         }
-    } else {
+    }
+    
+    if (!modelRendered) {
         // Fallback to primitive
         glColor3f(0.5f, 0.5f, 0.5f); // Gray
         glPushMatrix();
@@ -497,18 +504,25 @@ void drawCrop(float x, float z) {
     glTranslatef(x, 0, z);
     
     // Try to use loaded models (wheat or carrot)
-    bool useModel = false;
+    bool modelRendered = false;
     if (modelsLoaded) {
-        if (wheatModel.meshes.size() > 0 && (rand() % 2 == 0)) {
-            renderModel(wheatModel);
-            useModel = true;
+        // Select between wheat and carrot based on position for deterministic placement
+        Model* selectedModel = NULL;
+        if (wheatModel.meshes.size() > 0 && carrotModel.meshes.size() > 0) {
+            selectedModel = ((int)(x + z) % 2 == 0) ? &wheatModel : &carrotModel;
+        } else if (wheatModel.meshes.size() > 0) {
+            selectedModel = &wheatModel;
         } else if (carrotModel.meshes.size() > 0) {
-            renderModel(carrotModel);
-            useModel = true;
+            selectedModel = &carrotModel;
+        }
+        
+        if (selectedModel) {
+            renderModel(*selectedModel);
+            modelRendered = true;
         }
     }
     
-    if (!useModel) {
+    if (!modelRendered) {
         // Fallback to primitives - Wheat/carrot stalks
         glColor3f(0.8f, 0.7f, 0.2f); // Golden wheat
         for (int i = -2; i <= 2; i++) {
