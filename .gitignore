@@ -5,6 +5,7 @@
 BlitzMail
 OpenGL3DTemplate
 test_*
+*.log
 
 # CMake
 build/
