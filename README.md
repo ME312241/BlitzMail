@@ -1,6 +1,10 @@
 # BlitzMail - Rural Mail Delivery Game
 
+![Build Status](https://img.shields.io/badge/build-passing-brightgreen) ![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows%20%7C%20macOS-blue) ![License](https://img.shields.io/badge/license-MIT-blue)
+
 A 3D OpenGL game featuring a rural mail delivery scenario with a mailman character navigating through a countryside environment.
+
+**✅ Compilation Status**: Successfully builds on Linux with Make and CMake. Windows build configured for Visual Studio 2022.
 
 ## 🎮 Features
 
