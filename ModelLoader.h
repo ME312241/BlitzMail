@@ -149,6 +149,7 @@ std::string getDirectory(const std::string& filepath) {
 }
 
 // OBJ file parser - supports vertices, normals, texture coordinates, and faces
+#define MAX_LINE_LENGTH 256
 bool loadOBJ(const char* filename, Model& model) {
     printf("Loading OBJ model: %s\n", filename);
     
@@ -168,7 +169,7 @@ bool loadOBJ(const char* filename, Model& model) {
     Mesh currentMesh;
     bool hasMesh = false;
     
-    char line[256];
+    char line[MAX_LINE_LENGTH];
     while (fgets(line, sizeof(line), file)) {
         // Parse vertices
         if (strncmp(line, "v ", 2) == 0) {
@@ -201,17 +202,25 @@ bool loadOBJ(const char* filename, Model& model) {
             if (matches == 9) {
                 // f v/vt/vn
                 // OBJ indices are 1-based, convert to 0-based
-                currentMesh.vertices.push_back(temp_vertices[v1 - 1]);
-                currentMesh.vertices.push_back(temp_vertices[v2 - 1]);
-                currentMesh.vertices.push_back(temp_vertices[v3 - 1]);
+                if (v1 > 0 && v1 <= (int)temp_vertices.size() &&
+                    v2 > 0 && v2 <= (int)temp_vertices.size() &&
+                    v3 > 0 && v3 <= (int)temp_vertices.size()) {
+                    currentMesh.vertices.push_back(temp_vertices[v1 - 1]);
+                    currentMesh.vertices.push_back(temp_vertices[v2 - 1]);
+                    currentMesh.vertices.push_back(temp_vertices[v3 - 1]);
+                }
                 
-                if (vn1 > 0 && vn1 <= (int)temp_normals.size()) {
+                if (vn1 > 0 && vn1 <= (int)temp_normals.size() &&
+                    vn2 > 0 && vn2 <= (int)temp_normals.size() &&
+                    vn3 > 0 && vn3 <= (int)temp_normals.size()) {
                     currentMesh.normals.push_back(temp_normals[vn1 - 1]);
                     currentMesh.normals.push_back(temp_normals[vn2 - 1]);
                     currentMesh.normals.push_back(temp_normals[vn3 - 1]);
                 }
                 
-                if (vt1 > 0 && vt1 <= (int)temp_texcoords.size()) {
+                if (vt1 > 0 && vt1 <= (int)temp_texcoords.size() &&
+                    vt2 > 0 && vt2 <= (int)temp_texcoords.size() &&
+                    vt3 > 0 && vt3 <= (int)temp_texcoords.size()) {
                     currentMesh.texCoords.push_back(temp_texcoords[vt1 - 1]);
                     currentMesh.texCoords.push_back(temp_texcoords[vt2 - 1]);
                     currentMesh.texCoords.push_back(temp_texcoords[vt3 - 1]);
@@ -221,11 +230,17 @@ bool loadOBJ(const char* filename, Model& model) {
                 matches = sscanf(line + 2, "%d//%d %d//%d %d//%d",
                                &v1, &vn1, &v2, &vn2, &v3, &vn3);
                 if (matches == 6) {
-                    currentMesh.vertices.push_back(temp_vertices[v1 - 1]);
-                    currentMesh.vertices.push_back(temp_vertices[v2 - 1]);
-                    currentMesh.vertices.push_back(temp_vertices[v3 - 1]);
+                    if (v1 > 0 && v1 <= (int)temp_vertices.size() &&
+                        v2 > 0 && v2 <= (int)temp_vertices.size() &&
+                        v3 > 0 && v3 <= (int)temp_vertices.size()) {
+                        currentMesh.vertices.push_back(temp_vertices[v1 - 1]);
+                        currentMesh.vertices.push_back(temp_vertices[v2 - 1]);
+                        currentMesh.vertices.push_back(temp_vertices[v3 - 1]);
+                    }
                     
-                    if (vn1 > 0 && vn1 <= (int)temp_normals.size()) {
+                    if (vn1 > 0 && vn1 <= (int)temp_normals.size() &&
+                        vn2 > 0 && vn2 <= (int)temp_normals.size() &&
+                        vn3 > 0 && vn3 <= (int)temp_normals.size()) {
                         currentMesh.normals.push_back(temp_normals[vn1 - 1]);
                         currentMesh.normals.push_back(temp_normals[vn2 - 1]);
                         currentMesh.normals.push_back(temp_normals[vn3 - 1]);
@@ -233,7 +248,9 @@ bool loadOBJ(const char* filename, Model& model) {
                 } else {
                     // Try f v (only vertices)
                     matches = sscanf(line + 2, "%d %d %d", &v1, &v2, &v3);
-                    if (matches == 3) {
+                    if (matches == 3 && v1 > 0 && v1 <= (int)temp_vertices.size() &&
+                        v2 > 0 && v2 <= (int)temp_vertices.size() &&
+                        v3 > 0 && v3 <= (int)temp_vertices.size()) {
                         currentMesh.vertices.push_back(temp_vertices[v1 - 1]);
                         currentMesh.vertices.push_back(temp_vertices[v2 - 1]);
                         currentMesh.vertices.push_back(temp_vertices[v3 - 1]);
@@ -259,8 +276,14 @@ bool loadOBJ(const char* filename, Model& model) {
         model.meshes.push_back(currentMesh);
     }
     
+    // Calculate total vertices across all meshes
+    int totalVertices = 0;
+    for (size_t i = 0; i < model.meshes.size(); i++) {
+        totalVertices += model.meshes[i].vertices.size();
+    }
+    
     printf("Successfully loaded OBJ: %s (%d meshes, %d vertices)\n",
-           filename, (int)model.meshes.size(), (int)currentMesh.vertices.size());
+           filename, (int)model.meshes.size(), totalVertices);
     
     return model.meshes.size() > 0;
 }
@@ -294,15 +317,15 @@ bool load3DS(const char* filename, Model& model) {
         }
         // Object block
         else if (chunkID == 0x4000) {
-            // Skip object name
-            char name[256];
+            // Skip object name (max 255 chars + null terminator)
+            char name[257];
             int i = 0;
-            while (i < 255) {
+            while (i < 256) {
                 if (fread(&name[i], 1, 1, file) != 1) break;
                 if (name[i] == 0) break;
                 i++;
             }
-            name[i] = 0;
+            name[256] = 0;  // Ensure null termination
         }
         // Triangular mesh
         else if (chunkID == 0x4100) {
@@ -358,9 +381,9 @@ bool load3DS(const char* filename, Model& model) {
             }
         }
         else {
-            // Skip unknown chunks
-            long skipBytes = chunkLength - 6;
-            if (skipBytes > 0) {
+            // Skip unknown chunks - check for underflow
+            if (chunkLength > 6) {
+                long skipBytes = chunkLength - 6;
                 fseek(file, skipBytes, SEEK_CUR);
             }
         }
