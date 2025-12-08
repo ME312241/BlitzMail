@@ -69,16 +69,18 @@ Model grassBlockModel;
 // Model loading flags
 bool modelsLoaded = false;
 
-// Model file paths
+// Model file paths - Using native formats with Assimp
+const char* MODEL_PATH_MAILMAN = "models/98-hikerbasemesh/Player.blend";
 const char* MODEL_PATH_TREE = "models/tree/tree1_3ds/Tree1.3ds";
-const char* MODEL_PATH_ROCK1 = "models/1elmla01hh-Rock1_BYTyroSmith/Rock1/Rock1.3ds";
-const char* MODEL_PATH_ROCKSET = "models/xvs3wxwo2o-RockSet_MadeByTyroSmith/RockSet/RockSet.3ds";
+const char* MODEL_PATH_ROCK1 = "models/1elmla01hh-Rock1_BYTyroSmith/Rock1/Rock1.blend";
+const char* MODEL_PATH_ROCKSET = "models/xvs3wxwo2o-RockSet_MadeByTyroSmith/RockSet/RockSet.blend";
 const char* MODEL_PATH_FARMHOUSE = "models/4vd2sk31doow-farmhouse_maya16/Farmhouse Maya 2016 Updated/farmhouse_obj.obj";
-const char* MODEL_PATH_STREETLAMP = "models/s3duldjjt9fk-StreetLampByTyroSmith/Street Lamp/StreetLamp.3ds";
+const char* MODEL_PATH_STREETLAMP = "models/s3duldjjt9fk-StreetLampByTyroSmith/Street Lamp/StreetLamp.blend";
 const char* MODEL_PATH_WHEAT = "models/10458_Wheat_Field_v1_L3.123c5ecd0518-ae16-4fee-bf80-4177de196237/10458_Wheat_Field_v1_L3.123c5ecd0518-ae16-4fee-bf80-4177de196237/10458_Wheat_Field_v1_max2010_it2.obj";
 const char* MODEL_PATH_CARROT = "models/Carrot_v01_l3.123c059c383a-f43b-48c0-b28a-bec318013e17/Carrot_v01_l3.123c059c383a-f43b-48c0-b28a-bec318013e17/10170_Carrot_v01_L3.obj";
 const char* MODEL_PATH_GRASSBLOCK = "models/grass-block/grass-block.3DS";
 const char* MODEL_PATH_TREE_ALT = "models/15od5xhlv2jc-Tree_02/Tree 02/Tree.obj";
+const char* MODEL_PATH_FENCE = "models/6od9waw1za0w-fence/fence/cerca.blend";
 
 // Forward declarations
 void loadAllModels();
@@ -97,16 +99,27 @@ void setupLighting();
 void updateSunLight();
 void updateLampLights();
 
-// Load all 3DS models from the models directory
+// Load all models using Assimp - supports .blend, .obj, .3ds, .ma/.mb, .fbx, etc.
 void loadAllModels() {
-    printf("Loading 3D models...\n");
+    printf("Loading 3D models with Assimp...\n");
     
     // Seed random number generator for model variation
     srand((unsigned int)time(NULL));
     
-    // Load mailman model (using .blend, but we'll use primitives with enhancements)
-    // Note: The mailman model is Player.blend which needs conversion
-    // For now, we'll enhance the primitive-based mailman
+    // Load mailman model from Player.blend
+    if (loadModel(MODEL_PATH_MAILMAN, mailmanModel)) {
+        mailmanModel.scale = 0.5f;
+        mailmanModel.offset = Vector3(0, 0, 0);
+        printf("Mailman model loaded from Player.blend\n");
+    } else {
+        printf("Warning: Could not load Player.blend, will use primitives\n");
+    }
+    
+    // Load fence model from .blend
+    if (loadModel(MODEL_PATH_FENCE, fenceModel)) {
+        fenceModel.scale = 1.0f;
+        fenceModel.offset = Vector3(0, 0, 0);
+    }
     
     // Load tree model
     if (loadModel(MODEL_PATH_TREE, treeModel)) {
@@ -114,7 +127,7 @@ void loadAllModels() {
         treeModel.offset = Vector3(0, 0, 0);
     }
     
-    // Load rock models
+    // Load rock models from .blend files
     if (loadModel(MODEL_PATH_ROCK1, rockModel)) {
         rockModel.scale = 0.5f;
         rockModel.offset = Vector3(0, 0, 0);
@@ -125,13 +138,13 @@ void loadAllModels() {
         rockSetModel.offset = Vector3(0, 0, 0);
     }
     
-    // Load house model (using OBJ which is available)
+    // Load house model from OBJ (Maya export)
     if (loadModel(MODEL_PATH_FARMHOUSE, houseModel)) {
         houseModel.scale = 0.01f;
         houseModel.offset = Vector3(0, 0, 0);
     }
     
-    // Load street lamp model
+    // Load street lamp model from .blend
     if (loadModel(MODEL_PATH_STREETLAMP, streetLampModel)) {
         streetLampModel.scale = 0.05f;
         streetLampModel.offset = Vector3(0, 0, 0);
@@ -168,80 +181,89 @@ void loadAllModels() {
 void drawPlayer() {
     glPushMatrix();
     
-    // Body (torso)
-    glColor3f(0.2f, 0.3f, 0.8f); // Blue uniform
-    glPushMatrix();
-    glTranslatef(0, 0.8f, 0);
-    glScalef(0.6f, 1.0f, 0.4f);
-    glutSolidCube(1.0f);
-    glPopMatrix();
+    // If Player.blend model is loaded, use it; otherwise use primitives
+    if (mailmanModel.meshes.size() > 0) {
+        // Render the loaded Player.blend model
+        glColor3f(1.0f, 1.0f, 1.0f); // White for textured model
+        renderModel(mailmanModel);
+    } else {
+        // Fall back to primitive-based mailman
+        // Body (torso)
+        glColor3f(0.2f, 0.3f, 0.8f); // Blue uniform
+        glPushMatrix();
+        glTranslatef(0, 0.8f, 0);
+        glScalef(0.6f, 1.0f, 0.4f);
+        glutSolidCube(1.0f);
+        glPopMatrix();
+        
+        // Head
+        glColor3f(0.9f, 0.7f, 0.6f); // Skin tone
+        glPushMatrix();
+        glTranslatef(0, 1.6f, 0);
+        glutSolidSphere(0.3f, 20, 20);
+        glPopMatrix();
+        
+        // Arms
+        glColor3f(0.2f, 0.3f, 0.8f);
+        // Left arm
+        glPushMatrix();
+        glTranslatef(-0.4f, 0.7f, 0);
+        glRotatef(20, 0, 0, 1);
+        glScalef(0.15f, 0.8f, 0.15f);
+        glutSolidCube(1.0f);
+        glPopMatrix();
+        
+        // Right arm
+        glPushMatrix();
+        glTranslatef(0.4f, 0.7f, 0);
+        glRotatef(-20, 0, 0, 1);
+        glScalef(0.15f, 0.8f, 0.15f);
+        glutSolidCube(1.0f);
+        glPopMatrix();
+        
+        // Legs
+        glColor3f(0.15f, 0.15f, 0.15f); // Dark pants
+        // Left leg
+        glPushMatrix();
+        glTranslatef(-0.15f, 0.0f, 0);
+        glScalef(0.2f, 0.8f, 0.2f);
+        glutSolidCube(1.0f);
+        glPopMatrix();
+        
+        // Right leg
+        glPushMatrix();
+        glTranslatef(0.15f, 0.0f, 0);
+        glScalef(0.2f, 0.8f, 0.2f);
+        glutSolidCube(1.0f);
+        glPopMatrix();
+        
+        // Cap
+        glColor3f(0.2f, 0.3f, 0.8f);
+        glPushMatrix();
+        glTranslatef(0, 1.85f, 0);
+        glScalef(1.2f, 0.3f, 1.2f);
+        glutSolidSphere(0.3f, 20, 20);
+        glPopMatrix();
+        
+        // Cap visor
+        glPushMatrix();
+        glTranslatef(0, 1.75f, 0.3f);
+        glScalef(0.35f, 0.05f, 0.2f);
+        glutSolidCube(1.0f);
+        glPopMatrix();
+        
+        // Postal badge on chest
+        glColor3f(0.9f, 0.8f, 0.1f); // Gold badge
+        glPushMatrix();
+        glTranslatef(0, 1.0f, 0.21f);
+        glScalef(0.15f, 0.15f, 0.02f);
+        glutSolidCube(1.0f);
+        glPopMatrix();
+    }
     
-    // Head
-    glColor3f(0.9f, 0.7f, 0.6f); // Skin tone
-    glPushMatrix();
-    glTranslatef(0, 1.6f, 0);
-    glutSolidSphere(0.3f, 20, 20);
-    glPopMatrix();
-    
-    // Mail bag on back
+    // Always add mail bag and postman items as primitives
+    // These are added on top of the loaded model or primitive player
     drawMailBag();
-    
-    // Arms
-    glColor3f(0.2f, 0.3f, 0.8f);
-    // Left arm
-    glPushMatrix();
-    glTranslatef(-0.4f, 0.7f, 0);
-    glRotatef(20, 0, 0, 1);
-    glScalef(0.15f, 0.8f, 0.15f);
-    glutSolidCube(1.0f);
-    glPopMatrix();
-    
-    // Right arm
-    glPushMatrix();
-    glTranslatef(0.4f, 0.7f, 0);
-    glRotatef(-20, 0, 0, 1);
-    glScalef(0.15f, 0.8f, 0.15f);
-    glutSolidCube(1.0f);
-    glPopMatrix();
-    
-    // Legs
-    glColor3f(0.15f, 0.15f, 0.15f); // Dark pants
-    // Left leg
-    glPushMatrix();
-    glTranslatef(-0.15f, 0.0f, 0);
-    glScalef(0.2f, 0.8f, 0.2f);
-    glutSolidCube(1.0f);
-    glPopMatrix();
-    
-    // Right leg
-    glPushMatrix();
-    glTranslatef(0.15f, 0.0f, 0);
-    glScalef(0.2f, 0.8f, 0.2f);
-    glutSolidCube(1.0f);
-    glPopMatrix();
-    
-    // Cap
-    glColor3f(0.2f, 0.3f, 0.8f);
-    glPushMatrix();
-    glTranslatef(0, 1.85f, 0);
-    glScalef(1.2f, 0.3f, 1.2f);
-    glutSolidSphere(0.3f, 20, 20);
-    glPopMatrix();
-    
-    // Cap visor
-    glPushMatrix();
-    glTranslatef(0, 1.75f, 0.3f);
-    glScalef(0.35f, 0.05f, 0.2f);
-    glutSolidCube(1.0f);
-    glPopMatrix();
-    
-    // Postal badge on chest
-    glColor3f(0.9f, 0.8f, 0.1f); // Gold badge
-    glPushMatrix();
-    glTranslatef(0, 1.0f, 0.21f);
-    glScalef(0.15f, 0.15f, 0.02f);
-    glutSolidCube(1.0f);
-    glPopMatrix();
     
     glPopMatrix();
 }

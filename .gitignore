@@ -1,0 +1,40 @@
+# External dependencies
+external/assimp-5.4.3/
+external/*.tar.gz
+external/assimp-install/
+
+# Build artifacts
+Debug/
+Release/
+*.exe
+*.obj
+*.o
+*.so
+*.a
+*.lib
+*.dll
+BlitzMail
+
+# Backup files
+*.backup
+*_old.h
+
+# Visual Studio files
+.vs/
+*.suo
+*.user
+*.sdf
+*.opensdf
+*.VC.db
+*.VC.opendb
+
+# IDE files
+*.swp
+*~
+.vscode/
+.idea/
+
+# Temporary files
+/tmp/
+*.tmp
+*.log
