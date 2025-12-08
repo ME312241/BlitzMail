@@ -39,6 +39,10 @@ int frameCount = 0;
 int packagesCollected = 0;
 const int TOTAL_PACKAGES = 5;
 
+// Crop field dimensions
+const int NORTH_FIELD_CROP_COLUMNS = 6;
+const int SOUTH_FIELD_CROP_COLUMNS = 5;
+
 // Package positions
 struct Package {
     float x, y, z;
@@ -46,7 +50,7 @@ struct Package {
 };
 
 // Package positions (spread out across the rural landscape)
-Package packages[5] = {
+Package packages[TOTAL_PACKAGES] = {
     {18.0f, 0.5f, 8.0f, false},      // Near east area
     {-22.0f, 0.5f, -12.0f, false},   // Near northwest house
     {12.0f, 0.5f, -28.0f, false},    // Near north field
@@ -899,12 +903,12 @@ void Display(void) {
     
     // Draw crops (wheat and carrots in organized fields)
     // North field
-    for (int i = 0; i < 6; i++) {
+    for (int i = 0; i < NORTH_FIELD_CROP_COLUMNS; i++) {
         drawCrop(-8.0f + i * 3, -32.0f);
         drawCrop(-8.0f + i * 3, -35.0f);
     }
     // South field  
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < SOUTH_FIELD_CROP_COLUMNS; i++) {
         drawCrop(12.0f + i * 3, 32.0f);
     }
     
