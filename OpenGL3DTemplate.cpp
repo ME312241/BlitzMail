@@ -69,12 +69,14 @@ Model grassBlockModel;
 // Model loading flags
 bool modelsLoaded = false;
 
-// Model file paths
+// Model file paths - Now using Assimp-supported formats where available (.blend, .obj, .3ds)
+const char* MODEL_PATH_PLAYER = "models/98-hikerbasemesh/Player.blend";
 const char* MODEL_PATH_TREE = "models/tree/tree1_3ds/Tree1.3ds";
-const char* MODEL_PATH_ROCK1 = "models/1elmla01hh-Rock1_BYTyroSmith/Rock1/Rock1.3ds";
-const char* MODEL_PATH_ROCKSET = "models/xvs3wxwo2o-RockSet_MadeByTyroSmith/RockSet/RockSet.3ds";
+const char* MODEL_PATH_ROCK1 = "models/1elmla01hh-Rock1_BYTyroSmith/Rock1/Rock1.blend";
+const char* MODEL_PATH_ROCKSET = "models/xvs3wxwo2o-RockSet_MadeByTyroSmith/RockSet/RockSet.blend";
 const char* MODEL_PATH_FARMHOUSE = "models/4vd2sk31doow-farmhouse_maya16/Farmhouse Maya 2016 Updated/farmhouse_obj.obj";
-const char* MODEL_PATH_STREETLAMP = "models/s3duldjjt9fk-StreetLampByTyroSmith/Street Lamp/StreetLamp.3ds";
+const char* MODEL_PATH_STREETLAMP = "models/s3duldjjt9fk-StreetLampByTyroSmith/Street Lamp/StreetLamp.blend";
+const char* MODEL_PATH_FENCE = "models/6od9waw1za0w-fence/fence/cerca.blend";
 const char* MODEL_PATH_WHEAT = "models/10458_Wheat_Field_v1_L3.123c5ecd0518-ae16-4fee-bf80-4177de196237/10458_Wheat_Field_v1_L3.123c5ecd0518-ae16-4fee-bf80-4177de196237/10458_Wheat_Field_v1_max2010_it2.obj";
 const char* MODEL_PATH_CARROT = "models/Carrot_v01_l3.123c059c383a-f43b-48c0-b28a-bec318013e17/Carrot_v01_l3.123c059c383a-f43b-48c0-b28a-bec318013e17/10170_Carrot_v01_L3.obj";
 const char* MODEL_PATH_GRASSBLOCK = "models/grass-block/grass-block.3DS";
@@ -97,16 +99,21 @@ void setupLighting();
 void updateSunLight();
 void updateLampLights();
 
-// Load all 3DS models from the models directory
+// Load all 3D models from the models directory (now using Assimp for .blend support!)
 void loadAllModels() {
-    printf("Loading 3D models...\n");
+    printf("Loading 3D models with Assimp support...\n");
     
     // Seed random number generator for model variation
     srand((unsigned int)time(NULL));
     
-    // Load mailman model (using .blend, but we'll use primitives with enhancements)
-    // Note: The mailman model is Player.blend which needs conversion
-    // For now, we'll enhance the primitive-based mailman
+    // Load mailman model from Player.blend using Assimp
+    if (loadModel(MODEL_PATH_PLAYER, mailmanModel)) {
+        mailmanModel.scale = 0.01f;  // Adjust scale as needed
+        mailmanModel.offset = Vector3(0, 0, 0);
+        printf("  Mailman model loaded from .blend file!\n");
+    } else {
+        printf("  Mailman .blend model not available, using primitives\n");
+    }
     
     // Load tree model
     if (loadModel(MODEL_PATH_TREE, treeModel)) {
@@ -114,14 +121,14 @@ void loadAllModels() {
         treeModel.offset = Vector3(0, 0, 0);
     }
     
-    // Load rock models
+    // Load rock models (now using .blend files)
     if (loadModel(MODEL_PATH_ROCK1, rockModel)) {
-        rockModel.scale = 0.5f;
+        rockModel.scale = 0.01f;  // Adjusted for .blend scale
         rockModel.offset = Vector3(0, 0, 0);
     }
     
     if (loadModel(MODEL_PATH_ROCKSET, rockSetModel)) {
-        rockSetModel.scale = 0.3f;
+        rockSetModel.scale = 0.01f;  // Adjusted for .blend scale
         rockSetModel.offset = Vector3(0, 0, 0);
     }
     
@@ -131,10 +138,16 @@ void loadAllModels() {
         houseModel.offset = Vector3(0, 0, 0);
     }
     
-    // Load street lamp model
+    // Load street lamp model (now using .blend file)
     if (loadModel(MODEL_PATH_STREETLAMP, streetLampModel)) {
-        streetLampModel.scale = 0.05f;
+        streetLampModel.scale = 0.01f;  // Adjusted for .blend scale
         streetLampModel.offset = Vector3(0, 0, 0);
+    }
+    
+    // Load fence model (now using .blend file)
+    if (loadModel(MODEL_PATH_FENCE, fenceModel)) {
+        fenceModel.scale = 0.01f;
+        fenceModel.offset = Vector3(0, 0, 0);
     }
     
     // Load wheat model
@@ -155,12 +168,6 @@ void loadAllModels() {
         grassBlockModel.offset = Vector3(0, 0, 0);
     }
     
-    // Load tree model (alternate)
-    if (loadModel(MODEL_PATH_TREE_ALT, treeModel)) {
-        treeModel.scale = 0.01f;
-        treeModel.offset = Vector3(0, 0, 0);
-    }
-    
     modelsLoaded = true;
     printf("Models loaded successfully!\n");
 }
@@ -168,80 +175,93 @@ void loadAllModels() {
 void drawPlayer() {
     glPushMatrix();
     
-    // Body (torso)
-    glColor3f(0.2f, 0.3f, 0.8f); // Blue uniform
-    glPushMatrix();
-    glTranslatef(0, 0.8f, 0);
-    glScalef(0.6f, 1.0f, 0.4f);
-    glutSolidCube(1.0f);
-    glPopMatrix();
-    
-    // Head
-    glColor3f(0.9f, 0.7f, 0.6f); // Skin tone
-    glPushMatrix();
-    glTranslatef(0, 1.6f, 0);
-    glutSolidSphere(0.3f, 20, 20);
-    glPopMatrix();
-    
-    // Mail bag on back
-    drawMailBag();
-    
-    // Arms
-    glColor3f(0.2f, 0.3f, 0.8f);
-    // Left arm
-    glPushMatrix();
-    glTranslatef(-0.4f, 0.7f, 0);
-    glRotatef(20, 0, 0, 1);
-    glScalef(0.15f, 0.8f, 0.15f);
-    glutSolidCube(1.0f);
-    glPopMatrix();
-    
-    // Right arm
-    glPushMatrix();
-    glTranslatef(0.4f, 0.7f, 0);
-    glRotatef(-20, 0, 0, 1);
-    glScalef(0.15f, 0.8f, 0.15f);
-    glutSolidCube(1.0f);
-    glPopMatrix();
-    
-    // Legs
-    glColor3f(0.15f, 0.15f, 0.15f); // Dark pants
-    // Left leg
-    glPushMatrix();
-    glTranslatef(-0.15f, 0.0f, 0);
-    glScalef(0.2f, 0.8f, 0.2f);
-    glutSolidCube(1.0f);
-    glPopMatrix();
-    
-    // Right leg
-    glPushMatrix();
-    glTranslatef(0.15f, 0.0f, 0);
-    glScalef(0.2f, 0.8f, 0.2f);
-    glutSolidCube(1.0f);
-    glPopMatrix();
-    
-    // Cap
-    glColor3f(0.2f, 0.3f, 0.8f);
-    glPushMatrix();
-    glTranslatef(0, 1.85f, 0);
-    glScalef(1.2f, 0.3f, 1.2f);
-    glutSolidSphere(0.3f, 20, 20);
-    glPopMatrix();
-    
-    // Cap visor
-    glPushMatrix();
-    glTranslatef(0, 1.75f, 0.3f);
-    glScalef(0.35f, 0.05f, 0.2f);
-    glutSolidCube(1.0f);
-    glPopMatrix();
-    
-    // Postal badge on chest
-    glColor3f(0.9f, 0.8f, 0.1f); // Gold badge
-    glPushMatrix();
-    glTranslatef(0, 1.0f, 0.21f);
-    glScalef(0.15f, 0.15f, 0.02f);
-    glutSolidCube(1.0f);
-    glPopMatrix();
+    // Try to use loaded mailman model from Player.blend
+    if (modelsLoaded && mailmanModel.meshes.size() > 0) {
+        // Render the loaded Player.blend model
+        glPushMatrix();
+        glScalef(2.0f, 2.0f, 2.0f);  // Scale up the model if needed
+        renderModel(mailmanModel);
+        glPopMatrix();
+        
+        // Still add the mail bag and postal items as primitives on top
+        drawMailBag();
+    } else {
+        // Fallback to primitives if model didn't load
+        // Body (torso)
+        glColor3f(0.2f, 0.3f, 0.8f); // Blue uniform
+        glPushMatrix();
+        glTranslatef(0, 0.8f, 0);
+        glScalef(0.6f, 1.0f, 0.4f);
+        glutSolidCube(1.0f);
+        glPopMatrix();
+        
+        // Head
+        glColor3f(0.9f, 0.7f, 0.6f); // Skin tone
+        glPushMatrix();
+        glTranslatef(0, 1.6f, 0);
+        glutSolidSphere(0.3f, 20, 20);
+        glPopMatrix();
+        
+        // Mail bag on back
+        drawMailBag();
+        
+        // Arms
+        glColor3f(0.2f, 0.3f, 0.8f);
+        // Left arm
+        glPushMatrix();
+        glTranslatef(-0.4f, 0.7f, 0);
+        glRotatef(20, 0, 0, 1);
+        glScalef(0.15f, 0.8f, 0.15f);
+        glutSolidCube(1.0f);
+        glPopMatrix();
+        
+        // Right arm
+        glPushMatrix();
+        glTranslatef(0.4f, 0.7f, 0);
+        glRotatef(-20, 0, 0, 1);
+        glScalef(0.15f, 0.8f, 0.15f);
+        glutSolidCube(1.0f);
+        glPopMatrix();
+        
+        // Legs
+        glColor3f(0.15f, 0.15f, 0.15f); // Dark pants
+        // Left leg
+        glPushMatrix();
+        glTranslatef(-0.15f, 0.0f, 0);
+        glScalef(0.2f, 0.8f, 0.2f);
+        glutSolidCube(1.0f);
+        glPopMatrix();
+        
+        // Right leg
+        glPushMatrix();
+        glTranslatef(0.15f, 0.0f, 0);
+        glScalef(0.2f, 0.8f, 0.2f);
+        glutSolidCube(1.0f);
+        glPopMatrix();
+        
+        // Cap
+        glColor3f(0.2f, 0.3f, 0.8f);
+        glPushMatrix();
+        glTranslatef(0, 1.85f, 0);
+        glScalef(1.2f, 0.3f, 1.2f);
+        glutSolidSphere(0.3f, 20, 20);
+        glPopMatrix();
+        
+        // Cap visor
+        glPushMatrix();
+        glTranslatef(0, 1.75f, 0.3f);
+        glScalef(0.35f, 0.05f, 0.2f);
+        glutSolidCube(1.0f);
+        glPopMatrix();
+        
+        // Postal badge on chest
+        glColor3f(0.9f, 0.8f, 0.1f); // Gold badge
+        glPushMatrix();
+        glTranslatef(0, 1.0f, 0.21f);
+        glScalef(0.15f, 0.15f, 0.02f);
+        glutSolidCube(1.0f);
+        glPopMatrix();
+    }
     
     glPopMatrix();
 }
@@ -433,29 +453,39 @@ void drawFence(float x, float z, float length, float rotation) {
     glTranslatef(x, 0, z);
     glRotatef(rotation, 0, 1, 0);
     
-    glColor3f(0.5f, 0.35f, 0.2f); // Wood color
-    
-    // Fence posts
-    for (float i = 0; i < length; i += 2.0f) {
+    // Try to use loaded fence model from .blend file
+    if (modelsLoaded && fenceModel.meshes.size() > 0) {
+        // Render the loaded fence model
         glPushMatrix();
-        glTranslatef(i, 0.75f, 0);
-        glScalef(0.15f, 1.5f, 0.15f);
+        glScalef(length / 10.0f, 1.0f, 1.0f);  // Scale to match requested length
+        renderModel(fenceModel);
+        glPopMatrix();
+    } else {
+        // Fallback to primitives if model didn't load
+        glColor3f(0.5f, 0.35f, 0.2f); // Wood color
+        
+        // Fence posts
+        for (float i = 0; i < length; i += 2.0f) {
+            glPushMatrix();
+            glTranslatef(i, 0.75f, 0);
+            glScalef(0.15f, 1.5f, 0.15f);
+            glutSolidCube(1.0f);
+            glPopMatrix();
+        }
+        
+        // Horizontal rails
+        glPushMatrix();
+        glTranslatef(length / 2, 1.0f, 0);
+        glScalef(length, 0.1f, 0.1f);
+        glutSolidCube(1.0f);
+        glPopMatrix();
+        
+        glPushMatrix();
+        glTranslatef(length / 2, 0.5f, 0);
+        glScalef(length, 0.1f, 0.1f);
         glutSolidCube(1.0f);
         glPopMatrix();
     }
-    
-    // Horizontal rails
-    glPushMatrix();
-    glTranslatef(length / 2, 1.0f, 0);
-    glScalef(length, 0.1f, 0.1f);
-    glutSolidCube(1.0f);
-    glPopMatrix();
-    
-    glPushMatrix();
-    glTranslatef(length / 2, 0.5f, 0);
-    glScalef(length, 0.1f, 0.1f);
-    glutSolidCube(1.0f);
-    glPopMatrix();
     
     glPopMatrix();
 }

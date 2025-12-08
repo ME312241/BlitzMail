@@ -12,6 +12,11 @@
 #include <string>
 #include <vector>
 
+// Include Assimp for advanced model loading
+#include <assimp/Importer.hpp>
+#include <assimp/scene.h>
+#include <assimp/postprocess.h>
+
 #ifdef _WIN32
 // Windows doesn't have strcasecmp
 #define strcasecmp _stricmp
@@ -419,16 +424,152 @@ void renderModel(const Model& model) {
     glPopMatrix();
 }
 
+// Load model using Assimp library (supports .blend, .fbx, .dae, and many more formats)
+bool loadAssimpModel(const char* filename, Model& model) {
+    Assimp::Importer importer;
+    
+    // Load the model with post-processing
+    const aiScene* scene = importer.ReadFile(filename, 
+        aiProcess_Triangulate |           // Convert all polygons to triangles
+        aiProcess_FlipUVs |               // Flip UV coordinates (OpenGL convention)
+        aiProcess_GenNormals |            // Generate normals if not present
+        aiProcess_JoinIdenticalVertices | // Optimize by joining identical vertices
+        aiProcess_OptimizeMeshes |        // Reduce number of meshes
+        aiProcess_ImproveCacheLocality |  // Improve vertex cache locality
+        aiProcess_RemoveRedundantMaterials // Remove redundant materials
+    );
+    
+    if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
+        printf("Warning: Assimp failed to load file: %s\n", filename);
+        printf("  Error: %s\n", importer.GetErrorString());
+        return false;
+    }
+    
+    printf("Loading model with Assimp: %s\n", filename);
+    printf("  Meshes: %d\n", scene->mNumMeshes);
+    printf("  Materials: %d\n", scene->mNumMaterials);
+    
+    // Process all meshes in the scene
+    for (unsigned int i = 0; i < scene->mNumMeshes; i++) {
+        aiMesh* aiMesh = scene->mMeshes[i];
+        Mesh mesh;
+        
+        printf("  Processing mesh %d: %s (%d vertices, %d faces)\n", 
+               i, aiMesh->mName.C_Str(), aiMesh->mNumVertices, aiMesh->mNumFaces);
+        
+        // Process vertices, normals, and texture coordinates
+        for (unsigned int j = 0; j < aiMesh->mNumVertices; j++) {
+            // Vertices
+            Vector3 vertex;
+            vertex.x = aiMesh->mVertices[j].x;
+            vertex.y = aiMesh->mVertices[j].y;
+            vertex.z = aiMesh->mVertices[j].z;
+            mesh.vertices.push_back(vertex);
+            
+            // Normals
+            if (aiMesh->HasNormals()) {
+                Vector3 normal;
+                normal.x = aiMesh->mNormals[j].x;
+                normal.y = aiMesh->mNormals[j].y;
+                normal.z = aiMesh->mNormals[j].z;
+                mesh.normals.push_back(normal);
+            } else {
+                mesh.normals.push_back(Vector3(0, 1, 0)); // Default up normal
+            }
+            
+            // Texture coordinates
+            if (aiMesh->HasTextureCoords(0)) {
+                Vector2 texCoord;
+                texCoord.u = aiMesh->mTextureCoords[0][j].x;
+                texCoord.v = aiMesh->mTextureCoords[0][j].y;
+                mesh.texCoords.push_back(texCoord);
+            } else {
+                mesh.texCoords.push_back(Vector2(0, 0));
+            }
+        }
+        
+        // Process faces (all triangulated due to aiProcess_Triangulate)
+        // Note: We're storing expanded vertices, not using indexed rendering
+        // This is for simplicity and compatibility with the existing rendering code
+        
+        // Load material/texture if available
+        if (aiMesh->mMaterialIndex >= 0 && aiMesh->mMaterialIndex < scene->mNumMaterials) {
+            aiMaterial* material = scene->mMaterials[aiMesh->mMaterialIndex];
+            
+            // Get diffuse texture
+            if (material->GetTextureCount(aiTextureType_DIFFUSE) > 0) {
+                aiString texPath;
+                material->GetTexture(aiTextureType_DIFFUSE, 0, &texPath);
+                
+                // Try to load the texture
+                // First try relative to model file
+                std::string fullPath = std::string(filename);
+                size_t lastSlash = fullPath.find_last_of("/\\");
+                if (lastSlash != std::string::npos) {
+                    fullPath = fullPath.substr(0, lastSlash + 1) + std::string(texPath.C_Str());
+                    mesh.textureID = loadTexture(fullPath.c_str());
+                }
+                
+                // If that didn't work, try the texture path as-is
+                if (mesh.textureID == 0) {
+                    mesh.textureID = loadTexture(texPath.C_Str());
+                }
+                
+                if (mesh.textureID != 0) {
+                    printf("    Loaded texture: %s\n", texPath.C_Str());
+                }
+            }
+            
+            // Store material name
+            aiString matName;
+            material->Get(AI_MATKEY_NAME, matName);
+            mesh.materialName = std::string(matName.C_Str());
+        }
+        
+        model.meshes.push_back(mesh);
+    }
+    
+    printf("Loaded model with Assimp: %s (%d meshes)\n", filename, (int)model.meshes.size());
+    return true;
+}
+
 // Load model with automatic format detection
 bool loadModel(const char* filename, Model& model) {
     const char* ext = strrchr(filename, '.');
-    if (ext) {
-        if (strcasecmp(ext, ".obj") == 0) {
-            return loadOBJModel(filename, model);
-        } else if (strcasecmp(ext, ".3ds") == 0 || strcasecmp(ext, ".3DS") == 0) {
-            return load3DSModel(filename, model);
-        }
+    if (!ext) {
+        printf("Warning: No file extension found: %s\n", filename);
+        return false;
     }
+    
+    // Try Assimp for .blend, .fbx, .dae, and other advanced formats
+    if (strcasecmp(ext, ".blend") == 0 || 
+        strcasecmp(ext, ".fbx") == 0 || 
+        strcasecmp(ext, ".dae") == 0 ||
+        strcasecmp(ext, ".gltf") == 0 ||
+        strcasecmp(ext, ".glb") == 0) {
+        return loadAssimpModel(filename, model);
+    }
+    // For .obj and .3ds, try Assimp first, then fall back to custom loaders
+    else if (strcasecmp(ext, ".obj") == 0) {
+        // Try Assimp first for better compatibility
+        if (loadAssimpModel(filename, model)) {
+            return true;
+        }
+        // Fall back to custom OBJ loader
+        printf("  Assimp failed, trying custom OBJ loader...\n");
+        return loadOBJModel(filename, model);
+    } 
+    else if (strcasecmp(ext, ".3ds") == 0 || strcasecmp(ext, ".3DS") == 0) {
+        // Try Assimp first for better compatibility
+        if (loadAssimpModel(filename, model)) {
+            return true;
+        }
+        // Fall back to custom 3DS loader
+        printf("  Assimp failed, trying custom 3DS loader...\n");
+        return load3DSModel(filename, model);
+    }
+    
+    printf("Warning: Unsupported file format: %s\n", filename);
     return false;
 }
 
