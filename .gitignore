@@ -1,6 +1,8 @@
-# Build artifacts
+# Build artifacts (compiled object files only)
 *.o
-*.obj
+/*.obj
+OpenGL3DTemplate.obj
+test_*.obj
 *.exe
 BlitzMail
 OpenGL3DTemplate
