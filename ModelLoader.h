@@ -7,22 +7,12 @@
 #include <GL/glut.h>
 #endif
 
-// Assimp includes
-#include <assimp/Importer.hpp>
-#include <assimp/scene.h>
-#include <assimp/postprocess.h>
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <string>
 #include <vector>
 #include <map>
-
-// Include Assimp for advanced model loading
-#include <assimp/Importer.hpp>
-#include <assimp/scene.h>
-#include <assimp/postprocess.h>
 
 #ifdef _WIN32
 // Windows doesn't have strcasecmp
@@ -158,138 +148,290 @@ std::string getDirectory(const std::string& filepath) {
     return "";
 }
 
-// Process a single mesh from Assimp
-void processMesh(aiMesh* assimpMesh, const aiScene* scene, Mesh& mesh, const std::string& modelDir) {
-    // Process vertices, normals, and texture coordinates
-    for (unsigned int i = 0; i < assimpMesh->mNumVertices; i++) {
-        Vector3 vertex;
-        vertex.x = assimpMesh->mVertices[i].x;
-        vertex.y = assimpMesh->mVertices[i].y;
-        vertex.z = assimpMesh->mVertices[i].z;
-        mesh.vertices.push_back(vertex);
-        
-        if (assimpMesh->HasNormals()) {
-            Vector3 normal;
-            normal.x = assimpMesh->mNormals[i].x;
-            normal.y = assimpMesh->mNormals[i].y;
-            normal.z = assimpMesh->mNormals[i].z;
-            mesh.normals.push_back(normal);
-        } else {
-            mesh.normals.push_back(Vector3(0, 1, 0)); // Default normal
-        }
-        
-        if (assimpMesh->HasTextureCoords(0)) {
-            Vector2 texCoord;
-            texCoord.u = assimpMesh->mTextureCoords[0][i].x;
-            texCoord.v = assimpMesh->mTextureCoords[0][i].y;
-            mesh.texCoords.push_back(texCoord);
-        } else {
-            mesh.texCoords.push_back(Vector2(0, 0)); // Default tex coord
-        }
+// OBJ file parser - supports vertices, normals, texture coordinates, and faces
+#define MAX_LINE_LENGTH 256
+bool loadOBJ(const char* filename, Model& model) {
+    printf("Loading OBJ model: %s\n", filename);
+    
+    FILE* file = fopen(filename, "r");
+    if (!file) {
+        printf("Error: Could not open OBJ file: %s\n", filename);
+        return false;
     }
     
-    // Process faces (Assimp already triangulates if we request it)
-    // Note: We expand vertices per face for simplicity with OpenGL immediate mode
-    std::vector<Vector3> expandedVertices;
-    std::vector<Vector3> expandedNormals;
-    std::vector<Vector2> expandedTexCoords;
+    std::string modelDir = getDirectory(filename);
     
-    for (unsigned int i = 0; i < assimpMesh->mNumFaces; i++) {
-        aiFace face = assimpMesh->mFaces[i];
-        if (face.mNumIndices == 3) {
-            for (unsigned int j = 0; j < 3; j++) {
-                unsigned int index = face.mIndices[j];
-                if (index < mesh.vertices.size()) {
-                    expandedVertices.push_back(mesh.vertices[index]);
-                    expandedNormals.push_back(mesh.normals[index]);
-                    expandedTexCoords.push_back(mesh.texCoords[index]);
+    // Temporary storage for indexed data
+    std::vector<Vector3> temp_vertices;
+    std::vector<Vector3> temp_normals;
+    std::vector<Vector2> temp_texcoords;
+    
+    Mesh currentMesh;
+    bool hasMesh = false;
+    
+    char line[MAX_LINE_LENGTH];
+    while (fgets(line, sizeof(line), file)) {
+        // Parse vertices
+        if (strncmp(line, "v ", 2) == 0) {
+            Vector3 vertex;
+            if (sscanf(line + 2, "%f %f %f", &vertex.x, &vertex.y, &vertex.z) == 3) {
+                temp_vertices.push_back(vertex);
+            }
+        }
+        // Parse normals
+        else if (strncmp(line, "vn ", 3) == 0) {
+            Vector3 normal;
+            if (sscanf(line + 3, "%f %f %f", &normal.x, &normal.y, &normal.z) == 3) {
+                temp_normals.push_back(normal);
+            }
+        }
+        // Parse texture coordinates
+        else if (strncmp(line, "vt ", 3) == 0) {
+            Vector2 texcoord;
+            if (sscanf(line + 3, "%f %f", &texcoord.u, &texcoord.v) == 2) {
+                temp_texcoords.push_back(texcoord);
+            }
+        }
+        // Parse faces
+        else if (strncmp(line, "f ", 2) == 0) {
+            if (!hasMesh) {
+                hasMesh = true;
+            }
+            
+            int v1, v2, v3, vt1, vt2, vt3, vn1, vn2, vn3;
+            int matches = sscanf(line + 2, "%d/%d/%d %d/%d/%d %d/%d/%d",
+                                &v1, &vt1, &vn1, &v2, &vt2, &vn2, &v3, &vt3, &vn3);
+            
+            if (matches == 9) {
+                // f v/vt/vn
+                // OBJ indices are 1-based, convert to 0-based
+                if (v1 > 0 && v1 <= (int)temp_vertices.size() &&
+                    v2 > 0 && v2 <= (int)temp_vertices.size() &&
+                    v3 > 0 && v3 <= (int)temp_vertices.size()) {
+                    currentMesh.vertices.push_back(temp_vertices[v1 - 1]);
+                    currentMesh.vertices.push_back(temp_vertices[v2 - 1]);
+                    currentMesh.vertices.push_back(temp_vertices[v3 - 1]);
+                }
+                
+                if (vn1 > 0 && vn1 <= (int)temp_normals.size() &&
+                    vn2 > 0 && vn2 <= (int)temp_normals.size() &&
+                    vn3 > 0 && vn3 <= (int)temp_normals.size()) {
+                    currentMesh.normals.push_back(temp_normals[vn1 - 1]);
+                    currentMesh.normals.push_back(temp_normals[vn2 - 1]);
+                    currentMesh.normals.push_back(temp_normals[vn3 - 1]);
+                }
+                
+                if (vt1 > 0 && vt1 <= (int)temp_texcoords.size() &&
+                    vt2 > 0 && vt2 <= (int)temp_texcoords.size() &&
+                    vt3 > 0 && vt3 <= (int)temp_texcoords.size()) {
+                    currentMesh.texCoords.push_back(temp_texcoords[vt1 - 1]);
+                    currentMesh.texCoords.push_back(temp_texcoords[vt2 - 1]);
+                    currentMesh.texCoords.push_back(temp_texcoords[vt3 - 1]);
+                }
+            } else {
+                // Try f v//vn (no texture coords)
+                matches = sscanf(line + 2, "%d//%d %d//%d %d//%d",
+                               &v1, &vn1, &v2, &vn2, &v3, &vn3);
+                if (matches == 6) {
+                    if (v1 > 0 && v1 <= (int)temp_vertices.size() &&
+                        v2 > 0 && v2 <= (int)temp_vertices.size() &&
+                        v3 > 0 && v3 <= (int)temp_vertices.size()) {
+                        currentMesh.vertices.push_back(temp_vertices[v1 - 1]);
+                        currentMesh.vertices.push_back(temp_vertices[v2 - 1]);
+                        currentMesh.vertices.push_back(temp_vertices[v3 - 1]);
+                    }
+                    
+                    if (vn1 > 0 && vn1 <= (int)temp_normals.size() &&
+                        vn2 > 0 && vn2 <= (int)temp_normals.size() &&
+                        vn3 > 0 && vn3 <= (int)temp_normals.size()) {
+                        currentMesh.normals.push_back(temp_normals[vn1 - 1]);
+                        currentMesh.normals.push_back(temp_normals[vn2 - 1]);
+                        currentMesh.normals.push_back(temp_normals[vn3 - 1]);
+                    }
+                } else {
+                    // Try f v (only vertices)
+                    matches = sscanf(line + 2, "%d %d %d", &v1, &v2, &v3);
+                    if (matches == 3 && v1 > 0 && v1 <= (int)temp_vertices.size() &&
+                        v2 > 0 && v2 <= (int)temp_vertices.size() &&
+                        v3 > 0 && v3 <= (int)temp_vertices.size()) {
+                        currentMesh.vertices.push_back(temp_vertices[v1 - 1]);
+                        currentMesh.vertices.push_back(temp_vertices[v2 - 1]);
+                        currentMesh.vertices.push_back(temp_vertices[v3 - 1]);
+                    }
                 }
             }
         }
     }
     
-    // Replace with expanded data
-    mesh.vertices = expandedVertices;
-    mesh.normals = expandedNormals;
-    mesh.texCoords = expandedTexCoords;
+    fclose(file);
     
-    // Process materials and textures
-    if (assimpMesh->mMaterialIndex >= 0) {
-        aiMaterial* material = scene->mMaterials[assimpMesh->mMaterialIndex];
-        
-        // Try to load diffuse texture
-        if (material->GetTextureCount(aiTextureType_DIFFUSE) > 0) {
-            aiString texPath;
-            material->GetTexture(aiTextureType_DIFFUSE, 0, &texPath);
-            
-            // Try with model directory first
-            std::string fullPath = modelDir + std::string(texPath.C_Str());
-            mesh.textureID = loadTexture(fullPath.c_str());
-            
-            // Try without directory if not found
-            if (mesh.textureID == 0) {
-                mesh.textureID = loadTexture(texPath.C_Str());
-            }
+    // Add the mesh if we parsed any data
+    if (hasMesh && currentMesh.vertices.size() > 0) {
+        // Fill in missing normals with default values
+        while (currentMesh.normals.size() < currentMesh.vertices.size()) {
+            currentMesh.normals.push_back(Vector3(0, 1, 0));
         }
-    }
-}
-
-// Recursively process nodes in the scene
-void processNode(aiNode* node, const aiScene* scene, Model& model, const std::string& modelDir) {
-    // Process all meshes in this node
-    for (unsigned int i = 0; i < node->mNumMeshes; i++) {
-        aiMesh* assimpMesh = scene->mMeshes[node->mMeshes[i]];
-        Mesh mesh;
-        processMesh(assimpMesh, scene, mesh, modelDir);
-        model.meshes.push_back(mesh);
+        // Fill in missing texture coordinates
+        while (currentMesh.texCoords.size() < currentMesh.vertices.size()) {
+            currentMesh.texCoords.push_back(Vector2(0, 0));
+        }
+        
+        model.meshes.push_back(currentMesh);
     }
     
-    // Recursively process child nodes
-    for (unsigned int i = 0; i < node->mNumChildren; i++) {
-        processNode(node->mChildren[i], scene, model, modelDir);
-    }
-}
-
-// Load model using Assimp - supports many formats including .blend, .obj, .3ds, .ma, .mb, .fbx, etc.
-bool loadModel(const char* filename, Model& model) {
-    printf("Loading model with Assimp: %s\n", filename);
-    
-    // Create Assimp importer
-    Assimp::Importer importer;
-    
-    // Read the file with post-processing options
-    // aiProcess_Triangulate: Convert all polygons to triangles
-    // aiProcess_FlipUVs: Flip texture coordinates (some formats need this)
-    // aiProcess_GenNormals: Generate normals if not present
-    // aiProcess_JoinIdenticalVertices: Optimize the mesh
-    const aiScene* scene = importer.ReadFile(filename,
-        aiProcess_Triangulate |
-        aiProcess_GenSmoothNormals |
-        aiProcess_JoinIdenticalVertices |
-        aiProcess_PreTransformVertices);
-    
-    // Check for errors
-    if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
-        printf("ERROR::ASSIMP: %s\n", importer.GetErrorString());
-        return false;
-    }
-    
-    // Get the directory of the model file for texture loading
-    std::string modelDir = getDirectory(filename);
-    
-    // Process the scene
-    processNode(scene->mRootNode, scene, model, modelDir);
-    
-    // Calculate total vertices
+    // Calculate total vertices across all meshes
     int totalVertices = 0;
     for (size_t i = 0; i < model.meshes.size(); i++) {
         totalVertices += model.meshes[i].vertices.size();
     }
     
-    printf("Successfully loaded model: %s (%d meshes, %d vertices)\n", 
+    printf("Successfully loaded OBJ: %s (%d meshes, %d vertices)\n",
            filename, (int)model.meshes.size(), totalVertices);
     
-    return true;
+    return model.meshes.size() > 0;
+}
+
+// Simple 3DS file parser - basic implementation for triangular meshes
+#define MAX_3DS_VERTICES 1000000  // Maximum vertices per mesh (safety limit)
+#define MAX_3DS_FACES 1000000     // Maximum faces per mesh (safety limit)
+bool load3DS(const char* filename, Model& model) {
+    printf("Loading 3DS model: %s\n", filename);
+    
+    FILE* file = fopen(filename, "rb");
+    if (!file) {
+        printf("Error: Could not open 3DS file: %s\n", filename);
+        return false;
+    }
+    
+    Mesh mesh;
+    
+    // 3DS file format uses chunks with IDs and lengths
+    unsigned short chunkID;
+    unsigned int chunkLength;
+    
+    while (fread(&chunkID, 2, 1, file) == 1) {
+        if (fread(&chunkLength, 4, 1, file) != 1) break;
+        
+        // Main chunk
+        if (chunkID == 0x4D4D) {
+            continue;
+        }
+        // 3D Editor chunk
+        else if (chunkID == 0x3D3D) {
+            continue;
+        }
+        // Object block
+        else if (chunkID == 0x4000) {
+            // Skip object name (max 255 chars + null terminator)
+            char name[257];
+            int i = 0;
+            while (i < 256) {
+                if (fread(&name[i], 1, 1, file) != 1) break;
+                if (name[i] == 0) break;
+                i++;
+            }
+            name[256] = 0;  // Ensure null termination
+        }
+        // Triangular mesh
+        else if (chunkID == 0x4100) {
+            continue;
+        }
+        // Vertices list
+        else if (chunkID == 0x4110) {
+            unsigned short numVertices;
+            if (fread(&numVertices, 2, 1, file) == 1 && numVertices <= MAX_3DS_VERTICES) {
+                for (int i = 0; i < numVertices; i++) {
+                    Vector3 vertex;
+                    if (fread(&vertex.x, 4, 1, file) != 1) break;
+                    if (fread(&vertex.y, 4, 1, file) != 1) break;
+                    if (fread(&vertex.z, 4, 1, file) != 1) break;
+                    mesh.vertices.push_back(vertex);
+                }
+            }
+        }
+        // Faces description
+        else if (chunkID == 0x4120) {
+            unsigned short numFaces;
+            if (fread(&numFaces, 2, 1, file) == 1 && numFaces <= MAX_3DS_FACES) {
+                std::vector<Vector3> originalVertices = mesh.vertices;
+                mesh.vertices.clear();
+                
+                for (int i = 0; i < numFaces; i++) {
+                    unsigned short v1, v2, v3, flags;
+                    if (fread(&v1, 2, 1, file) != 1) break;
+                    if (fread(&v2, 2, 1, file) != 1) break;
+                    if (fread(&v3, 2, 1, file) != 1) break;
+                    if (fread(&flags, 2, 1, file) != 1) break;
+                    
+                    if (v1 < originalVertices.size() &&
+                        v2 < originalVertices.size() &&
+                        v3 < originalVertices.size()) {
+                        mesh.vertices.push_back(originalVertices[v1]);
+                        mesh.vertices.push_back(originalVertices[v2]);
+                        mesh.vertices.push_back(originalVertices[v3]);
+                    }
+                }
+            }
+        }
+        // Mapping coordinates
+        else if (chunkID == 0x4140) {
+            unsigned short numCoords;
+            if (fread(&numCoords, 2, 1, file) == 1 && numCoords <= MAX_3DS_VERTICES) {
+                for (int i = 0; i < numCoords; i++) {
+                    Vector2 texcoord;
+                    if (fread(&texcoord.u, 4, 1, file) != 1) break;
+                    if (fread(&texcoord.v, 4, 1, file) != 1) break;
+                    mesh.texCoords.push_back(texcoord);
+                }
+            }
+        }
+        else {
+            // Skip unknown chunks - check for underflow
+            if (chunkLength > 6) {
+                long skipBytes = chunkLength - 6;
+                fseek(file, skipBytes, SEEK_CUR);
+            }
+        }
+    }
+    
+    fclose(file);
+    
+    // Fill in missing data
+    while (mesh.normals.size() < mesh.vertices.size()) {
+        mesh.normals.push_back(Vector3(0, 1, 0));
+    }
+    while (mesh.texCoords.size() < mesh.vertices.size()) {
+        mesh.texCoords.push_back(Vector2(0, 0));
+    }
+    
+    if (mesh.vertices.size() > 0) {
+        model.meshes.push_back(mesh);
+    }
+    
+    printf("Successfully loaded 3DS: %s (%d meshes, %d vertices)\n",
+           filename, (int)model.meshes.size(), (int)mesh.vertices.size());
+    
+    return model.meshes.size() > 0;
+}
+
+// Load model - detects format and uses appropriate parser
+bool loadModel(const char* filename, Model& model) {
+    // Check file extension
+    const char* ext = strrchr(filename, '.');
+    if (!ext) {
+        printf("Error: No file extension found in: %s\n", filename);
+        return false;
+    }
+    
+    // Load based on extension
+    if (strcasecmp(ext, ".obj") == 0) {
+        return loadOBJ(filename, model);
+    } else if (strcasecmp(ext, ".3ds") == 0 || strcasecmp(ext, ".3DS") == 0) {
+        return load3DS(filename, model);
+    } else {
+        printf("Error: Unsupported file format: %s\n", ext);
+        return false;
+    }
 }
 
 // Render a loaded model

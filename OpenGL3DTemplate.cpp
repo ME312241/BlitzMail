@@ -69,14 +69,15 @@ Model grassBlockModel;
 // Model loading flags
 bool modelsLoaded = false;
 
-// Model file paths - Now using Assimp-supported formats where available (.blend, .obj, .3ds)
-const char* MODEL_PATH_PLAYER = "models/98-hikerbasemesh/Player.blend";
+// Model file paths - Using .obj and .3ds formats (Assimp no longer needed)
+// Note: Some models may need to be exported from .blend to .obj using Blender if not available
+const char* MODEL_PATH_PLAYER = "models/98-hikerbasemesh/Player.obj";  // Export from Player.blend if needed
 const char* MODEL_PATH_TREE = "models/tree/tree1_3ds/Tree1.3ds";
-const char* MODEL_PATH_ROCK1 = "models/1elmla01hh-Rock1_BYTyroSmith/Rock1/Rock1.blend";
-const char* MODEL_PATH_ROCKSET = "models/xvs3wxwo2o-RockSet_MadeByTyroSmith/RockSet/RockSet.blend";
+const char* MODEL_PATH_ROCK1 = "models/1elmla01hh-Rock1_BYTyroSmith/Rock1/Rock1.obj";
+const char* MODEL_PATH_ROCKSET = "models/xvs3wxwo2o-RockSet_MadeByTyroSmith/RockSet/RockSet.obj";
 const char* MODEL_PATH_FARMHOUSE = "models/4vd2sk31doow-farmhouse_maya16/Farmhouse Maya 2016 Updated/farmhouse_obj.obj";
-const char* MODEL_PATH_STREETLAMP = "models/s3duldjjt9fk-StreetLampByTyroSmith/Street Lamp/StreetLamp.blend";
-const char* MODEL_PATH_FENCE = "models/6od9waw1za0w-fence/fence/cerca.blend";
+const char* MODEL_PATH_STREETLAMP = "models/s3duldjjt9fk-StreetLampByTyroSmith/Street Lamp/StreetLamp.obj";
+const char* MODEL_PATH_FENCE = "models/6od9waw1za0w-fence/fence/cerca.obj";  // Export from cerca.blend if needed
 const char* MODEL_PATH_WHEAT = "models/10458_Wheat_Field_v1_L3.123c5ecd0518-ae16-4fee-bf80-4177de196237/10458_Wheat_Field_v1_L3.123c5ecd0518-ae16-4fee-bf80-4177de196237/10458_Wheat_Field_v1_max2010_it2.obj";
 const char* MODEL_PATH_CARROT = "models/Carrot_v01_l3.123c059c383a-f43b-48c0-b28a-bec318013e17/Carrot_v01_l3.123c059c383a-f43b-48c0-b28a-bec318013e17/10170_Carrot_v01_L3.obj";
 const char* MODEL_PATH_GRASSBLOCK = "models/grass-block/grass-block.3DS";
@@ -100,20 +101,20 @@ void setupLighting();
 void updateSunLight();
 void updateLampLights();
 
-// Load all 3D models from the models directory (now using Assimp for .blend support!)
+// Load all 3D models from the models directory (now using native .obj and .3ds parsers!)
 void loadAllModels() {
-    printf("Loading 3D models with Assimp support...\n");
+    printf("Loading 3D models with native OBJ/3DS parsers...\n");
     
     // Seed random number generator for model variation
     srand((unsigned int)time(NULL));
     
-    // Load mailman model from Player.blend using Assimp
+    // Load mailman model from Player.obj (exported from Player.blend using Blender)
     if (loadModel(MODEL_PATH_PLAYER, mailmanModel)) {
         mailmanModel.scale = 0.01f;  // Adjust scale as needed
         mailmanModel.offset = Vector3(0, 0, 0);
-        printf("  Mailman model loaded from .blend file!\n");
+        printf("  Mailman model loaded from .obj file!\n");
     } else {
-        printf("  Mailman .blend model not available, using primitives\n");
+        printf("  Mailman .obj model not available, using primitives\n");
     }
     
     // Load tree model
@@ -122,14 +123,14 @@ void loadAllModels() {
         treeModel.offset = Vector3(0, 0, 0);
     }
     
-    // Load rock models (now using .blend files)
+    // Load rock models (now using .obj files)
     if (loadModel(MODEL_PATH_ROCK1, rockModel)) {
-        rockModel.scale = 0.01f;  // Adjusted for .blend scale
+        rockModel.scale = 0.01f;  // Adjusted for .obj scale
         rockModel.offset = Vector3(0, 0, 0);
     }
     
     if (loadModel(MODEL_PATH_ROCKSET, rockSetModel)) {
-        rockSetModel.scale = 0.01f;  // Adjusted for .blend scale
+        rockSetModel.scale = 0.01f;  // Adjusted for .obj scale
         rockSetModel.offset = Vector3(0, 0, 0);
     }
     
@@ -139,13 +140,13 @@ void loadAllModels() {
         houseModel.offset = Vector3(0, 0, 0);
     }
     
-    // Load street lamp model (now using .blend file)
+    // Load street lamp model (now using .obj file)
     if (loadModel(MODEL_PATH_STREETLAMP, streetLampModel)) {
-        streetLampModel.scale = 0.01f;  // Adjusted for .blend scale
+        streetLampModel.scale = 0.01f;  // Adjusted for .obj scale
         streetLampModel.offset = Vector3(0, 0, 0);
     }
     
-    // Load fence model (now using .blend file)
+    // Load fence model (now using .obj file exported from cerca.blend)
     if (loadModel(MODEL_PATH_FENCE, fenceModel)) {
         fenceModel.scale = 0.01f;
         fenceModel.offset = Vector3(0, 0, 0);
@@ -176,9 +177,9 @@ void loadAllModels() {
 void drawPlayer() {
     glPushMatrix();
     
-    // Try to use loaded mailman model from Player.blend
+    // Try to use loaded mailman model from Player.obj
     if (modelsLoaded && mailmanModel.meshes.size() > 0) {
-        // Render the loaded Player.blend model
+        // Render the loaded Player.obj model
         glPushMatrix();
         glScalef(2.0f, 2.0f, 2.0f);  // Scale up the model if needed
         renderModel(mailmanModel);
@@ -454,7 +455,7 @@ void drawFence(float x, float z, float length, float rotation) {
     glTranslatef(x, 0, z);
     glRotatef(rotation, 0, 1, 0);
     
-    // Try to use loaded fence model from .blend file
+    // Try to use loaded fence model from .obj file
     if (modelsLoaded && fenceModel.meshes.size() > 0) {
         // Render the loaded fence model
         glPushMatrix();

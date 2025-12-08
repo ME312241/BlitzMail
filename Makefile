@@ -1,10 +1,10 @@
-# Makefile for BlitzMail with Assimp support
-# Supports Linux/Unix systems with OpenGL, GLUT, and Assimp
+# Makefile for BlitzMail
+# Supports Linux/Unix systems with OpenGL and GLUT
 
 # Compiler and flags
 CXX = g++
-CXXFLAGS = -std=c++11 -Wall -I. $(shell pkg-config --cflags assimp)
-LDFLAGS = -lGL -lGLU -lglut -lm $(shell pkg-config --libs assimp)
+CXXFLAGS = -std=c++11 -Wall -I.
+LDFLAGS = -lGL -lGLU -lglut -lm
 
 # Target executable
 TARGET = BlitzMail
@@ -36,7 +36,7 @@ clean:
 # Install dependencies (Ubuntu/Debian)
 install-deps:
 	sudo apt-get update
-	sudo apt-get install -y build-essential freeglut3-dev libassimp-dev
+	sudo apt-get install -y build-essential freeglut3-dev
 
 # Run the program
 run: $(TARGET)
@@ -56,7 +56,6 @@ help:
 	@echo "Dependencies:"
 	@echo "  - OpenGL"
 	@echo "  - GLUT/FreeGLUT"
-	@echo "  - Assimp 5.x"
 	@echo ""
 	@echo "Example usage:"
 	@echo "  make install-deps  # Install dependencies"
