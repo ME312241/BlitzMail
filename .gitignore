@@ -1,0 +1,31 @@
+# Build artifacts
+*.o
+*.obj
+*.exe
+BlitzMail
+OpenGL3DTemplate
+
+# CMake
+build/
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+
+# Visual Studio
+.vs/
+Debug/
+Release/
+*.suo
+*.user
+*.sdf
+*.opensdf
+*.VC.db
+*.VC.opendb
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*~
