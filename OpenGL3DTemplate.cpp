@@ -69,13 +69,14 @@ Model grassBlockModel;
 // Model loading flags
 bool modelsLoaded = false;
 
-// Model file paths - Using native formats with Assimp
-const char* MODEL_PATH_MAILMAN = "models/98-hikerbasemesh/Player.blend";
+// Model file paths - Now using Assimp-supported formats where available (.blend, .obj, .3ds)
+const char* MODEL_PATH_PLAYER = "models/98-hikerbasemesh/Player.blend";
 const char* MODEL_PATH_TREE = "models/tree/tree1_3ds/Tree1.3ds";
 const char* MODEL_PATH_ROCK1 = "models/1elmla01hh-Rock1_BYTyroSmith/Rock1/Rock1.blend";
 const char* MODEL_PATH_ROCKSET = "models/xvs3wxwo2o-RockSet_MadeByTyroSmith/RockSet/RockSet.blend";
 const char* MODEL_PATH_FARMHOUSE = "models/4vd2sk31doow-farmhouse_maya16/Farmhouse Maya 2016 Updated/farmhouse_obj.obj";
 const char* MODEL_PATH_STREETLAMP = "models/s3duldjjt9fk-StreetLampByTyroSmith/Street Lamp/StreetLamp.blend";
+const char* MODEL_PATH_FENCE = "models/6od9waw1za0w-fence/fence/cerca.blend";
 const char* MODEL_PATH_WHEAT = "models/10458_Wheat_Field_v1_L3.123c5ecd0518-ae16-4fee-bf80-4177de196237/10458_Wheat_Field_v1_L3.123c5ecd0518-ae16-4fee-bf80-4177de196237/10458_Wheat_Field_v1_max2010_it2.obj";
 const char* MODEL_PATH_CARROT = "models/Carrot_v01_l3.123c059c383a-f43b-48c0-b28a-bec318013e17/Carrot_v01_l3.123c059c383a-f43b-48c0-b28a-bec318013e17/10170_Carrot_v01_L3.obj";
 const char* MODEL_PATH_GRASSBLOCK = "models/grass-block/grass-block.3DS";
@@ -99,26 +100,20 @@ void setupLighting();
 void updateSunLight();
 void updateLampLights();
 
-// Load all models using Assimp - supports .blend, .obj, .3ds, .ma/.mb, .fbx, etc.
+// Load all 3D models from the models directory (now using Assimp for .blend support!)
 void loadAllModels() {
-    printf("Loading 3D models with Assimp...\n");
+    printf("Loading 3D models with Assimp support...\n");
     
     // Seed random number generator for model variation
     srand((unsigned int)time(NULL));
     
-    // Load mailman model from Player.blend
-    if (loadModel(MODEL_PATH_MAILMAN, mailmanModel)) {
-        mailmanModel.scale = 0.5f;
+    // Load mailman model from Player.blend using Assimp
+    if (loadModel(MODEL_PATH_PLAYER, mailmanModel)) {
+        mailmanModel.scale = 0.01f;  // Adjust scale as needed
         mailmanModel.offset = Vector3(0, 0, 0);
-        printf("Mailman model loaded from Player.blend\n");
+        printf("  Mailman model loaded from .blend file!\n");
     } else {
-        printf("Warning: Could not load Player.blend, will use primitives\n");
-    }
-    
-    // Load fence model from .blend
-    if (loadModel(MODEL_PATH_FENCE, fenceModel)) {
-        fenceModel.scale = 1.0f;
-        fenceModel.offset = Vector3(0, 0, 0);
+        printf("  Mailman .blend model not available, using primitives\n");
     }
     
     // Load tree model
@@ -127,14 +122,14 @@ void loadAllModels() {
         treeModel.offset = Vector3(0, 0, 0);
     }
     
-    // Load rock models from .blend files
+    // Load rock models (now using .blend files)
     if (loadModel(MODEL_PATH_ROCK1, rockModel)) {
-        rockModel.scale = 0.5f;
+        rockModel.scale = 0.01f;  // Adjusted for .blend scale
         rockModel.offset = Vector3(0, 0, 0);
     }
     
     if (loadModel(MODEL_PATH_ROCKSET, rockSetModel)) {
-        rockSetModel.scale = 0.3f;
+        rockSetModel.scale = 0.01f;  // Adjusted for .blend scale
         rockSetModel.offset = Vector3(0, 0, 0);
     }
     
@@ -144,10 +139,16 @@ void loadAllModels() {
         houseModel.offset = Vector3(0, 0, 0);
     }
     
-    // Load street lamp model from .blend
+    // Load street lamp model (now using .blend file)
     if (loadModel(MODEL_PATH_STREETLAMP, streetLampModel)) {
-        streetLampModel.scale = 0.05f;
+        streetLampModel.scale = 0.01f;  // Adjusted for .blend scale
         streetLampModel.offset = Vector3(0, 0, 0);
+    }
+    
+    // Load fence model (now using .blend file)
+    if (loadModel(MODEL_PATH_FENCE, fenceModel)) {
+        fenceModel.scale = 0.01f;
+        fenceModel.offset = Vector3(0, 0, 0);
     }
     
     // Load wheat model
@@ -168,12 +169,6 @@ void loadAllModels() {
         grassBlockModel.offset = Vector3(0, 0, 0);
     }
     
-    // Load tree model (alternate)
-    if (loadModel(MODEL_PATH_TREE_ALT, treeModel)) {
-        treeModel.scale = 0.01f;
-        treeModel.offset = Vector3(0, 0, 0);
-    }
-    
     modelsLoaded = true;
     printf("Models loaded successfully!\n");
 }
@@ -181,13 +176,18 @@ void loadAllModels() {
 void drawPlayer() {
     glPushMatrix();
     
-    // If Player.blend model is loaded, use it; otherwise use primitives
-    if (mailmanModel.meshes.size() > 0) {
+    // Try to use loaded mailman model from Player.blend
+    if (modelsLoaded && mailmanModel.meshes.size() > 0) {
         // Render the loaded Player.blend model
-        glColor3f(1.0f, 1.0f, 1.0f); // White for textured model
+        glPushMatrix();
+        glScalef(2.0f, 2.0f, 2.0f);  // Scale up the model if needed
         renderModel(mailmanModel);
+        glPopMatrix();
+        
+        // Still add the mail bag and postal items as primitives on top
+        drawMailBag();
     } else {
-        // Fall back to primitive-based mailman
+        // Fallback to primitives if model didn't load
         // Body (torso)
         glColor3f(0.2f, 0.3f, 0.8f); // Blue uniform
         glPushMatrix();
@@ -202,6 +202,9 @@ void drawPlayer() {
         glTranslatef(0, 1.6f, 0);
         glutSolidSphere(0.3f, 20, 20);
         glPopMatrix();
+        
+        // Mail bag on back
+        drawMailBag();
         
         // Arms
         glColor3f(0.2f, 0.3f, 0.8f);
@@ -260,10 +263,6 @@ void drawPlayer() {
         glutSolidCube(1.0f);
         glPopMatrix();
     }
-    
-    // Always add mail bag and postman items as primitives
-    // These are added on top of the loaded model or primitive player
-    drawMailBag();
     
     glPopMatrix();
 }
@@ -455,29 +454,39 @@ void drawFence(float x, float z, float length, float rotation) {
     glTranslatef(x, 0, z);
     glRotatef(rotation, 0, 1, 0);
     
-    glColor3f(0.5f, 0.35f, 0.2f); // Wood color
-    
-    // Fence posts
-    for (float i = 0; i < length; i += 2.0f) {
+    // Try to use loaded fence model from .blend file
+    if (modelsLoaded && fenceModel.meshes.size() > 0) {
+        // Render the loaded fence model
         glPushMatrix();
-        glTranslatef(i, 0.75f, 0);
-        glScalef(0.15f, 1.5f, 0.15f);
+        glScalef(length / 10.0f, 1.0f, 1.0f);  // Scale to match requested length
+        renderModel(fenceModel);
+        glPopMatrix();
+    } else {
+        // Fallback to primitives if model didn't load
+        glColor3f(0.5f, 0.35f, 0.2f); // Wood color
+        
+        // Fence posts
+        for (float i = 0; i < length; i += 2.0f) {
+            glPushMatrix();
+            glTranslatef(i, 0.75f, 0);
+            glScalef(0.15f, 1.5f, 0.15f);
+            glutSolidCube(1.0f);
+            glPopMatrix();
+        }
+        
+        // Horizontal rails
+        glPushMatrix();
+        glTranslatef(length / 2, 1.0f, 0);
+        glScalef(length, 0.1f, 0.1f);
+        glutSolidCube(1.0f);
+        glPopMatrix();
+        
+        glPushMatrix();
+        glTranslatef(length / 2, 0.5f, 0);
+        glScalef(length, 0.1f, 0.1f);
         glutSolidCube(1.0f);
         glPopMatrix();
     }
-    
-    // Horizontal rails
-    glPushMatrix();
-    glTranslatef(length / 2, 1.0f, 0);
-    glScalef(length, 0.1f, 0.1f);
-    glutSolidCube(1.0f);
-    glPopMatrix();
-    
-    glPushMatrix();
-    glTranslatef(length / 2, 0.5f, 0);
-    glScalef(length, 0.1f, 0.1f);
-    glutSolidCube(1.0f);
-    glPopMatrix();
     
     glPopMatrix();
 }
