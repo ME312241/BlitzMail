@@ -174,20 +174,23 @@ bool loadOBJ(const char* filename, Model& model) {
         // Parse vertices
         if (strncmp(line, "v ", 2) == 0) {
             Vector3 vertex;
-            sscanf(line + 2, "%f %f %f", &vertex.x, &vertex.y, &vertex.z);
-            temp_vertices.push_back(vertex);
+            if (sscanf(line + 2, "%f %f %f", &vertex.x, &vertex.y, &vertex.z) == 3) {
+                temp_vertices.push_back(vertex);
+            }
         }
         // Parse normals
         else if (strncmp(line, "vn ", 3) == 0) {
             Vector3 normal;
-            sscanf(line + 3, "%f %f %f", &normal.x, &normal.y, &normal.z);
-            temp_normals.push_back(normal);
+            if (sscanf(line + 3, "%f %f %f", &normal.x, &normal.y, &normal.z) == 3) {
+                temp_normals.push_back(normal);
+            }
         }
         // Parse texture coordinates
         else if (strncmp(line, "vt ", 3) == 0) {
             Vector2 texcoord;
-            sscanf(line + 3, "%f %f", &texcoord.u, &texcoord.v);
-            temp_texcoords.push_back(texcoord);
+            if (sscanf(line + 3, "%f %f", &texcoord.u, &texcoord.v) == 2) {
+                temp_texcoords.push_back(texcoord);
+            }
         }
         // Parse faces
         else if (strncmp(line, "f ", 2) == 0) {
@@ -289,6 +292,8 @@ bool loadOBJ(const char* filename, Model& model) {
 }
 
 // Simple 3DS file parser - basic implementation for triangular meshes
+#define MAX_3DS_VERTICES 1000000  // Maximum vertices per mesh (safety limit)
+#define MAX_3DS_FACES 1000000     // Maximum faces per mesh (safety limit)
 bool load3DS(const char* filename, Model& model) {
     printf("Loading 3DS model: %s\n", filename);
     
@@ -334,7 +339,7 @@ bool load3DS(const char* filename, Model& model) {
         // Vertices list
         else if (chunkID == 0x4110) {
             unsigned short numVertices;
-            if (fread(&numVertices, 2, 1, file) == 1) {
+            if (fread(&numVertices, 2, 1, file) == 1 && numVertices <= MAX_3DS_VERTICES) {
                 for (int i = 0; i < numVertices; i++) {
                     Vector3 vertex;
                     if (fread(&vertex.x, 4, 1, file) != 1) break;
@@ -347,7 +352,7 @@ bool load3DS(const char* filename, Model& model) {
         // Faces description
         else if (chunkID == 0x4120) {
             unsigned short numFaces;
-            if (fread(&numFaces, 2, 1, file) == 1) {
+            if (fread(&numFaces, 2, 1, file) == 1 && numFaces <= MAX_3DS_FACES) {
                 std::vector<Vector3> originalVertices = mesh.vertices;
                 mesh.vertices.clear();
                 
@@ -371,7 +376,7 @@ bool load3DS(const char* filename, Model& model) {
         // Mapping coordinates
         else if (chunkID == 0x4140) {
             unsigned short numCoords;
-            if (fread(&numCoords, 2, 1, file) == 1) {
+            if (fread(&numCoords, 2, 1, file) == 1 && numCoords <= MAX_3DS_VERTICES) {
                 for (int i = 0; i < numCoords; i++) {
                     Vector2 texcoord;
                     if (fread(&texcoord.u, 4, 1, file) != 1) break;
