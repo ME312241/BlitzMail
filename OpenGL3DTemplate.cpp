@@ -153,23 +153,32 @@ void loadAllModels() {
         fenceModel.offset = Vector3(0, 0, 0);
     }
     
-    // Load wheat model
+    // Load wheat model - DISABLED due to high poly count causing rendering issues
+    // Using primitive fallback instead for better performance
+    /*
     if (loadModel(MODEL_PATH_WHEAT, wheatModel)) {
-        wheatModel.scale = 0.01f;  // Increased for better visibility
+        wheatModel.scale = 0.001f;  // Very small scale for high-poly model
         wheatModel.offset = Vector3(0, 0, 0);
     }
+    */
     
-    // Load carrot model
+    // Load carrot model - DISABLED due to high poly count causing rendering issues
+    // Using primitive fallback instead for better performance
+    /*
     if (loadModel(MODEL_PATH_CARROT, carrotModel)) {
-        carrotModel.scale = 0.015f;  // Increased for better visibility
+        carrotModel.scale = 0.001f;  // Very small scale for high-poly model
         carrotModel.offset = Vector3(0, 0, 0);
     }
+    */
     
-    // Load grass block model
+    // Load grass block model - DISABLED due to extremely high poly count (121k vertices)
+    // Using primitive fallback instead for clean rendering
+    /*
     if (loadModel(MODEL_PATH_GRASSBLOCK, grassBlockModel)) {
-        grassBlockModel.scale = 0.5f;
+        grassBlockModel.scale = 0.01f;  // Much smaller scale
         grassBlockModel.offset = Vector3(0, 0, 0);
     }
+    */
     
     modelsLoaded = true;
     printf("Models loaded successfully!\n");
