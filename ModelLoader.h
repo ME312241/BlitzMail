@@ -214,7 +214,7 @@ bool load3DSModel(const char* filename, Model& model) {
                 unsigned short a = readLittleEndianShort(file);
                 unsigned short b = readLittleEndianShort(file);
                 unsigned short c = readLittleEndianShort(file);
-                unsigned short flags = readLittleEndianShort(file);
+                (void)readLittleEndianShort(file); // flags - not currently used
                 
                 if (a < originalVerts.size() &&
                     b < originalVerts.size() &&
