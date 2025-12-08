@@ -4,8 +4,7 @@
 *.exe
 BlitzMail
 OpenGL3DTemplate
-test_assimp
-test_model_loading
+test_*
 
 # CMake
 build/
