@@ -6,11 +6,18 @@
 #else
 #include <GL/glut.h>
 #endif
+
+// Assimp includes
+#include <assimp/Importer.hpp>
+#include <assimp/scene.h>
+#include <assimp/postprocess.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <string>
 #include <vector>
+#include <map>
 
 // Include Assimp for advanced model loading
 #include <assimp/Importer.hpp>
@@ -27,26 +34,7 @@
 #define GL_BGR 0x80E0
 #endif
 
-// Helper functions for endian conversion (3DS and BMP use little-endian)
-inline unsigned short readLittleEndianShort(FILE* file) {
-    unsigned char bytes[2];
-    fread(bytes, 1, 2, file);
-    return bytes[0] | (bytes[1] << 8);
-}
-
-inline unsigned int readLittleEndianInt(FILE* file) {
-    unsigned char bytes[4];
-    fread(bytes, 1, 4, file);
-    return bytes[0] | (bytes[1] << 8) | (bytes[2] << 16) | (bytes[3] << 24);
-}
-
-inline float readLittleEndianFloat(FILE* file) {
-    union { float f; unsigned int i; } u;
-    u.i = readLittleEndianInt(file);
-    return u.f;
-}
-
-// Simple 3DS model structure
+// Simple 3D model structures
 struct Vector3 {
     float x, y, z;
     Vector3() : x(0), y(0), z(0) {}
@@ -65,8 +53,7 @@ struct Face {
     int texCoordIndices[3];
 };
 
-// Note: Mesh stores expanded vertex/normal/texcoord data for simplicity
-// The faces vector is available for indexed rendering if needed in the future
+// Mesh stores expanded vertex/normal/texcoord data for rendering
 struct Mesh {
     std::vector<Vector3> vertices;
     std::vector<Vector3> normals;
@@ -83,6 +70,9 @@ struct Model {
     
     Model() : scale(1.0f), offset(0, 0, 0) {}
 };
+
+// Texture cache to avoid loading the same texture multiple times
+std::map<std::string, GLuint> textureCache;
 
 // Texture loading functions
 GLuint loadBMPTexture(const char* filename) {
@@ -114,7 +104,7 @@ GLuint loadBMPTexture(const char* filename) {
     if (imageSize == 0) imageSize = width * height * 3;
     if (dataPos == 0) dataPos = 54;
     
-    // Read image data - use vector for automatic memory management
+    // Read image data
     std::vector<unsigned char> data(imageSize);
     fseek(file, dataPos, SEEK_SET);
     fread(&data[0], 1, imageSize, file);
@@ -139,10 +129,19 @@ GLuint loadBMPTexture(const char* filename) {
 }
 
 GLuint loadTexture(const char* filename) {
+    // Check cache first
+    if (textureCache.find(filename) != textureCache.end()) {
+        return textureCache[filename];
+    }
+    
     // Check file extension
     const char* ext = strrchr(filename, '.');
     if (ext && (strcasecmp(ext, ".bmp") == 0)) {
-        return loadBMPTexture(filename);
+        GLuint texID = loadBMPTexture(filename);
+        if (texID != 0) {
+            textureCache[filename] = texID;
+        }
+        return texID;
     }
     
     // For other formats (JPG, PNG), would need additional libraries
@@ -150,46 +149,73 @@ GLuint loadTexture(const char* filename) {
     return 0;
 }
 
-// Simple 3DS loader stub
-// Note: Full 3DS parsing is complex. This provides the structure.
-// For production, use lib3ds or similar library.
-bool load3DSModel(const char* filename, Model& model) {
-    FILE* file = fopen(filename, "rb");
-    if (!file) {
-        printf("Warning: Could not open 3DS file: %s\n", filename);
-        return false;
+// Helper function to extract directory from filepath
+std::string getDirectory(const std::string& filepath) {
+    size_t pos = filepath.find_last_of("/\\");
+    if (pos != std::string::npos) {
+        return filepath.substr(0, pos + 1);
     }
-    
-    // Read basic 3DS structure
-    // 3DS files use chunk-based format with little-endian byte order
-    // Main chunk ID: 0x4D4D
-    // Object chunk: 0x4000
-    // Triangle mesh: 0x4100
-    // Vertices: 0x4110
-    // Faces: 0x4120
-    
-    // Read main chunk
-    unsigned short chunkID = readLittleEndianShort(file);
-    unsigned int chunkLength = readLittleEndianInt(file);
-    
-    if (chunkID != 0x4D4D) {
-        printf("Warning: Invalid 3DS file format: %s\n", filename);
-        fclose(file);
-        return false;
-    }
-    
-    Mesh mesh;
-    bool hasData = false;
-    
-    // Parse chunks
-    long fileSize = chunkLength;
-    long currentPos = 6; // Already read 6 bytes
-    
-    while (currentPos < fileSize) {
-        chunkID = readLittleEndianShort(file);
-        chunkLength = readLittleEndianInt(file);
+    return "";
+}
+
+// Process a single mesh from Assimp
+void processMesh(aiMesh* assimpMesh, const aiScene* scene, Mesh& mesh, const std::string& modelDir) {
+    // Process vertices, normals, and texture coordinates
+    for (unsigned int i = 0; i < assimpMesh->mNumVertices; i++) {
+        Vector3 vertex;
+        vertex.x = assimpMesh->mVertices[i].x;
+        vertex.y = assimpMesh->mVertices[i].y;
+        vertex.z = assimpMesh->mVertices[i].z;
+        mesh.vertices.push_back(vertex);
         
-        long nextChunk = currentPos + chunkLength;
+        if (assimpMesh->HasNormals()) {
+            Vector3 normal;
+            normal.x = assimpMesh->mNormals[i].x;
+            normal.y = assimpMesh->mNormals[i].y;
+            normal.z = assimpMesh->mNormals[i].z;
+            mesh.normals.push_back(normal);
+        } else {
+            mesh.normals.push_back(Vector3(0, 1, 0)); // Default normal
+        }
+        
+        if (assimpMesh->HasTextureCoords(0)) {
+            Vector2 texCoord;
+            texCoord.u = assimpMesh->mTextureCoords[0][i].x;
+            texCoord.v = assimpMesh->mTextureCoords[0][i].y;
+            mesh.texCoords.push_back(texCoord);
+        } else {
+            mesh.texCoords.push_back(Vector2(0, 0)); // Default tex coord
+        }
+    }
+    
+    // Process faces (Assimp already triangulates if we request it)
+    // Note: We expand vertices per face for simplicity with OpenGL immediate mode
+    std::vector<Vector3> expandedVertices;
+    std::vector<Vector3> expandedNormals;
+    std::vector<Vector2> expandedTexCoords;
+    
+    for (unsigned int i = 0; i < assimpMesh->mNumFaces; i++) {
+        aiFace face = assimpMesh->mFaces[i];
+        if (face.mNumIndices == 3) {
+            for (unsigned int j = 0; j < 3; j++) {
+                unsigned int index = face.mIndices[j];
+                if (index < mesh.vertices.size()) {
+                    expandedVertices.push_back(mesh.vertices[index]);
+                    expandedNormals.push_back(mesh.normals[index]);
+                    expandedTexCoords.push_back(mesh.texCoords[index]);
+                }
+            }
+        }
+    }
+    
+    // Replace with expanded data
+    mesh.vertices = expandedVertices;
+    mesh.normals = expandedNormals;
+    mesh.texCoords = expandedTexCoords;
+    
+    // Process materials and textures
+    if (assimpMesh->mMaterialIndex >= 0) {
+        aiMaterial* material = scene->mMaterials[assimpMesh->mMaterialIndex];
         
         if (chunkID == 0x4110) { // Vertices list
             unsigned short numVertices = readLittleEndianShort(file);
@@ -216,178 +242,71 @@ bool load3DSModel(const char* filename, Model& model) {
                 unsigned short c = readLittleEndianShort(file);
                 (void)readLittleEndianShort(file); // flags - not currently used
                 
-                if (a < originalVerts.size() &&
-                    b < originalVerts.size() &&
-                    c < originalVerts.size()) {
-                    
-                    Vector3 v1 = originalVerts[a];
-                    Vector3 v2 = originalVerts[b];
-                    Vector3 v3 = originalVerts[c];
-                    
-                    // Calculate face normal
-                    Vector3 edge1(v2.x - v1.x, v2.y - v1.y, v2.z - v1.z);
-                    Vector3 edge2(v3.x - v1.x, v3.y - v1.y, v3.z - v1.z);
-                    Vector3 normal(
-                        edge1.y * edge2.z - edge1.z * edge2.y,
-                        edge1.z * edge2.x - edge1.x * edge2.z,
-                        edge1.x * edge2.y - edge1.y * edge2.x
-                    );
-                    
-                    // Normalize
-                    float len = sqrt(normal.x * normal.x + normal.y * normal.y + normal.z * normal.z);
-                    if (len > 0.0001f) {
-                        normal.x /= len;
-                        normal.y /= len;
-                        normal.z /= len;
-                    }
-                    
-                    // Add expanded vertices and normals
-                    mesh.vertices.push_back(v1);
-                    mesh.vertices.push_back(v2);
-                    mesh.vertices.push_back(v3);
-                    
-                    mesh.normals.push_back(normal);
-                    mesh.normals.push_back(normal);
-                    mesh.normals.push_back(normal);
+                // Try without directory if not found
+                if (mesh.textureID == 0) {
+                    mesh.textureID = loadTexture(texPath.C_Str());
                 }
             }
-            
-            hasData = true;
         }
-        else if (chunkID == 0x4140) { // Texture coordinates
-            unsigned short numCoords = readLittleEndianShort(file);
-            
-            for (int i = 0; i < numCoords; i++) {
-                Vector2 texCoord;
-                texCoord.u = readLittleEndianFloat(file);
-                texCoord.v = readLittleEndianFloat(file);
-                mesh.texCoords.push_back(texCoord);
-            }
-        }
-        
-        // Seek to next chunk
-        fseek(file, nextChunk, SEEK_SET);
-        currentPos = nextChunk;
     }
-    
-    fclose(file);
-    
-    if (hasData && mesh.vertices.size() > 0) {
-        model.meshes.push_back(mesh);
-        printf("Loaded 3DS model: %s (%d vertices)\n", filename, (int)mesh.vertices.size());
-        return true;
-    }
-    
-    // Create a simple placeholder mesh if parsing failed
-    printf("Warning: 3DS file loaded but no geometry found: %s\n", filename);
-    return false;
 }
 
-// Simple OBJ loader
-bool loadOBJModel(const char* filename, Model& model) {
-    FILE* file = fopen(filename, "r");
-    if (!file) {
-        printf("Warning: Could not open OBJ file: %s\n", filename);
+// Recursively process nodes in the scene
+void processNode(aiNode* node, const aiScene* scene, Model& model, const std::string& modelDir) {
+    // Process all meshes in this node
+    for (unsigned int i = 0; i < node->mNumMeshes; i++) {
+        aiMesh* assimpMesh = scene->mMeshes[node->mMeshes[i]];
+        Mesh mesh;
+        processMesh(assimpMesh, scene, mesh, modelDir);
+        model.meshes.push_back(mesh);
+    }
+    
+    // Recursively process child nodes
+    for (unsigned int i = 0; i < node->mNumChildren; i++) {
+        processNode(node->mChildren[i], scene, model, modelDir);
+    }
+}
+
+// Load model using Assimp - supports many formats including .blend, .obj, .3ds, .ma, .mb, .fbx, etc.
+bool loadModel(const char* filename, Model& model) {
+    printf("Loading model with Assimp: %s\n", filename);
+    
+    // Create Assimp importer
+    Assimp::Importer importer;
+    
+    // Read the file with post-processing options
+    // aiProcess_Triangulate: Convert all polygons to triangles
+    // aiProcess_FlipUVs: Flip texture coordinates (some formats need this)
+    // aiProcess_GenNormals: Generate normals if not present
+    // aiProcess_JoinIdenticalVertices: Optimize the mesh
+    const aiScene* scene = importer.ReadFile(filename,
+        aiProcess_Triangulate |
+        aiProcess_GenSmoothNormals |
+        aiProcess_JoinIdenticalVertices |
+        aiProcess_PreTransformVertices);
+    
+    // Check for errors
+    if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
+        printf("ERROR::ASSIMP: %s\n", importer.GetErrorString());
         return false;
     }
     
-    std::vector<Vector3> tempVertices;
-    std::vector<Vector3> tempNormals;
-    std::vector<Vector2> tempTexCoords;
+    // Get the directory of the model file for texture loading
+    std::string modelDir = getDirectory(filename);
     
-    Mesh mesh;
+    // Process the scene
+    processNode(scene->mRootNode, scene, model, modelDir);
     
-    char line[256];
-    while (fgets(line, sizeof(line), file)) {
-        if (strncmp(line, "v ", 2) == 0) {
-            // Vertex
-            Vector3 vertex;
-            sscanf(line, "v %f %f %f", &vertex.x, &vertex.y, &vertex.z);
-            tempVertices.push_back(vertex);
-        }
-        else if (strncmp(line, "vn ", 3) == 0) {
-            // Normal
-            Vector3 normal;
-            sscanf(line, "vn %f %f %f", &normal.x, &normal.y, &normal.z);
-            tempNormals.push_back(normal);
-        }
-        else if (strncmp(line, "vt ", 3) == 0) {
-            // Texture coordinate
-            Vector2 texCoord;
-            sscanf(line, "vt %f %f", &texCoord.u, &texCoord.v);
-            tempTexCoords.push_back(texCoord);
-        }
-        else if (strncmp(line, "f ", 2) == 0) {
-            // Face
-            Face face;
-            int matches;
-            
-            // Try format: f v1/vt1/vn1 v2/vt2/vn2 v3/vt3/vn3
-            matches = sscanf(line, "f %d/%d/%d %d/%d/%d %d/%d/%d",
-                &face.vertexIndices[0], &face.texCoordIndices[0], &face.normalIndices[0],
-                &face.vertexIndices[1], &face.texCoordIndices[1], &face.normalIndices[1],
-                &face.vertexIndices[2], &face.texCoordIndices[2], &face.normalIndices[2]);
-            
-            if (matches != 9) {
-                // Try format: f v1//vn1 v2//vn2 v3//vn3
-                matches = sscanf(line, "f %d//%d %d//%d %d//%d",
-                    &face.vertexIndices[0], &face.normalIndices[0],
-                    &face.vertexIndices[1], &face.normalIndices[1],
-                    &face.vertexIndices[2], &face.normalIndices[2]);
-                
-                if (matches == 6) {
-                    face.texCoordIndices[0] = face.texCoordIndices[1] = face.texCoordIndices[2] = 0;
-                }
-            }
-            
-            if (matches == 0) {
-                // Try format: f v1 v2 v3
-                matches = sscanf(line, "f %d %d %d",
-                    &face.vertexIndices[0],
-                    &face.vertexIndices[1],
-                    &face.vertexIndices[2]);
-                
-                if (matches == 3) {
-                    face.normalIndices[0] = face.normalIndices[1] = face.normalIndices[2] = 0;
-                    face.texCoordIndices[0] = face.texCoordIndices[1] = face.texCoordIndices[2] = 0;
-                }
-            }
-            
-            // Convert to 0-based indexing
-            for (int i = 0; i < 3; i++) {
-                face.vertexIndices[i]--;
-                face.normalIndices[i]--;
-                face.texCoordIndices[i]--;
-            }
-            
-            // Expand face into mesh
-            for (int i = 0; i < 3; i++) {
-                if (face.vertexIndices[i] >= 0 && face.vertexIndices[i] < (int)tempVertices.size()) {
-                    mesh.vertices.push_back(tempVertices[face.vertexIndices[i]]);
-                }
-                if (face.normalIndices[i] >= 0 && face.normalIndices[i] < (int)tempNormals.size()) {
-                    mesh.normals.push_back(tempNormals[face.normalIndices[i]]);
-                } else {
-                    mesh.normals.push_back(Vector3(0, 1, 0)); // Default normal
-                }
-                if (face.texCoordIndices[i] >= 0 && face.texCoordIndices[i] < (int)tempTexCoords.size()) {
-                    mesh.texCoords.push_back(tempTexCoords[face.texCoordIndices[i]]);
-                } else {
-                    mesh.texCoords.push_back(Vector2(0, 0)); // Default texcoord
-                }
-            }
-        }
+    // Calculate total vertices
+    int totalVertices = 0;
+    for (size_t i = 0; i < model.meshes.size(); i++) {
+        totalVertices += model.meshes[i].vertices.size();
     }
     
-    fclose(file);
+    printf("Successfully loaded model: %s (%d meshes, %d vertices)\n", 
+           filename, (int)model.meshes.size(), totalVertices);
     
-    if (mesh.vertices.size() > 0) {
-        model.meshes.push_back(mesh);
-        printf("Loaded OBJ model: %s (%d vertices)\n", filename, (int)mesh.vertices.size());
-        return true;
-    }
-    
-    return false;
+    return true;
 }
 
 // Render a loaded model

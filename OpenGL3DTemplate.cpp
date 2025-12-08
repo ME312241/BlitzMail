@@ -81,6 +81,7 @@ const char* MODEL_PATH_WHEAT = "models/10458_Wheat_Field_v1_L3.123c5ecd0518-ae16
 const char* MODEL_PATH_CARROT = "models/Carrot_v01_l3.123c059c383a-f43b-48c0-b28a-bec318013e17/Carrot_v01_l3.123c059c383a-f43b-48c0-b28a-bec318013e17/10170_Carrot_v01_L3.obj";
 const char* MODEL_PATH_GRASSBLOCK = "models/grass-block/grass-block.3DS";
 const char* MODEL_PATH_TREE_ALT = "models/15od5xhlv2jc-Tree_02/Tree 02/Tree.obj";
+const char* MODEL_PATH_FENCE = "models/6od9waw1za0w-fence/fence/cerca.blend";
 
 // Forward declarations
 void loadAllModels();
@@ -132,7 +133,7 @@ void loadAllModels() {
         rockSetModel.offset = Vector3(0, 0, 0);
     }
     
-    // Load house model (using OBJ which is available)
+    // Load house model from OBJ (Maya export)
     if (loadModel(MODEL_PATH_FARMHOUSE, houseModel)) {
         houseModel.scale = 0.01f;
         houseModel.offset = Vector3(0, 0, 0);
