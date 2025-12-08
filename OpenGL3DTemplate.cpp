@@ -15,8 +15,8 @@
 #define MAX_PITCH 89.0f
 #define MIN_PITCH -89.0f
 
-// Camera and player state
-float playerX = 0.0f, playerY = 1.5f, playerZ = 10.0f;
+// Camera and player state (mailman at center of scene)
+float playerX = 0.0f, playerY = 1.5f, playerZ = 0.0f;
 float cameraYaw = 0.0f, cameraPitch = 0.0f;
 float playerVelY = 0.0f;
 bool isJumping = false;
@@ -45,12 +45,13 @@ struct Package {
     bool collected;
 };
 
+// Package positions (spread out across the rural landscape)
 Package packages[5] = {
-    {15.0f, 0.5f, 5.0f, false},
-    {-20.0f, 0.5f, -10.0f, false},
-    {10.0f, 0.5f, -25.0f, false},
-    {-15.0f, 0.5f, 15.0f, false},
-    {25.0f, 0.5f, -15.0f, false}
+    {18.0f, 0.5f, 8.0f, false},      // Near east area
+    {-22.0f, 0.5f, -12.0f, false},   // Near northwest house
+    {12.0f, 0.5f, -28.0f, false},    // Near north field
+    {-18.0f, 0.5f, 20.0f, false},    // Near southwest area
+    {28.0f, 0.5f, -18.0f, false}     // Near northeast area
 };
 
 // 3D Models
@@ -110,7 +111,7 @@ void loadAllModels() {
     
     // Load mailman model from Player.obj (exported from Player.blend using Blender)
     if (loadModel(MODEL_PATH_PLAYER, mailmanModel)) {
-        mailmanModel.scale = 0.01f;  // Adjust scale as needed
+        mailmanModel.scale = 0.02f;  // Increased scale for better visibility
         mailmanModel.offset = Vector3(0, 0, 0);
         printf("  Mailman model loaded from .obj file!\n");
     } else {
@@ -119,48 +120,48 @@ void loadAllModels() {
     
     // Load tree model
     if (loadModel(MODEL_PATH_TREE, treeModel)) {
-        treeModel.scale = 0.02f;
+        treeModel.scale = 0.05f;  // Increased scale for better visibility
         treeModel.offset = Vector3(0, 0, 0);
     }
     
     // Load rock models (now using .obj files)
     if (loadModel(MODEL_PATH_ROCK1, rockModel)) {
-        rockModel.scale = 0.01f;  // Adjusted for .obj scale
+        rockModel.scale = 0.02f;  // Increased for better visibility
         rockModel.offset = Vector3(0, 0, 0);
     }
     
     if (loadModel(MODEL_PATH_ROCKSET, rockSetModel)) {
-        rockSetModel.scale = 0.01f;  // Adjusted for .obj scale
+        rockSetModel.scale = 0.02f;  // Increased for better visibility
         rockSetModel.offset = Vector3(0, 0, 0);
     }
     
     // Load house model from OBJ (Maya export)
     if (loadModel(MODEL_PATH_FARMHOUSE, houseModel)) {
-        houseModel.scale = 0.01f;
+        houseModel.scale = 0.015f;  // Adjusted scale for proper sizing
         houseModel.offset = Vector3(0, 0, 0);
     }
     
     // Load street lamp model (now using .obj file)
     if (loadModel(MODEL_PATH_STREETLAMP, streetLampModel)) {
-        streetLampModel.scale = 0.01f;  // Adjusted for .obj scale
+        streetLampModel.scale = 0.02f;  // Increased for better visibility
         streetLampModel.offset = Vector3(0, 0, 0);
     }
     
     // Load fence model (now using .obj file exported from cerca.blend)
     if (loadModel(MODEL_PATH_FENCE, fenceModel)) {
-        fenceModel.scale = 0.01f;
+        fenceModel.scale = 0.02f;  // Increased for better visibility
         fenceModel.offset = Vector3(0, 0, 0);
     }
     
     // Load wheat model
     if (loadModel(MODEL_PATH_WHEAT, wheatModel)) {
-        wheatModel.scale = 0.005f;
+        wheatModel.scale = 0.01f;  // Increased for better visibility
         wheatModel.offset = Vector3(0, 0, 0);
     }
     
     // Load carrot model
     if (loadModel(MODEL_PATH_CARROT, carrotModel)) {
-        carrotModel.scale = 0.008f;
+        carrotModel.scale = 0.015f;  // Increased for better visibility
         carrotModel.offset = Vector3(0, 0, 0);
     }
     
@@ -363,7 +364,7 @@ void drawHouse(float x, float z, float scale) {
     // Try to use loaded model
     if (modelsLoaded && houseModel.meshes.size() > 0) {
         glPushMatrix();
-        glScalef(3.0f, 3.0f, 3.0f);
+        glScalef(2.5f, 2.5f, 2.5f);  // Adjusted for better visibility
         renderModel(houseModel);
         glPopMatrix();
     } else {
@@ -854,55 +855,66 @@ void Display(void) {
         glPopMatrix();
     }
     
-    // Draw houses (farmhouses and cottages)
-    drawHouse(-25.0f, -20.0f, 1.2f);
-    drawHouse(20.0f, -25.0f, 1.0f);
-    drawHouse(-15.0f, 25.0f, 1.1f);
-    drawHouse(30.0f, 15.0f, 0.9f);
+    // Draw houses (farmhouses scattered at proper distances around the scene)
+    drawHouse(-30.0f, -25.0f, 1.0f);  // Northwest house
+    drawHouse(25.0f, -30.0f, 1.0f);   // Northeast house  
+    drawHouse(-20.0f, 30.0f, 1.0f);   // Southwest house
+    drawHouse(35.0f, 20.0f, 1.0f);    // Southeast house
     
-    // Draw trees
-    drawTree(-5.0f, -15.0f, 4.0f);
-    drawTree(8.0f, -8.0f, 3.5f);
-    drawTree(-12.0f, 5.0f, 4.5f);
-    drawTree(15.0f, 8.0f, 3.8f);
-    drawTree(-20.0f, -5.0f, 4.2f);
-    drawTree(25.0f, -18.0f, 3.9f);
-    drawTree(-8.0f, 20.0f, 4.1f);
-    drawTree(18.0f, 22.0f, 3.7f);
+    // Draw trees (scattered naturally around the rural scene)
+    drawTree(-8.0f, -18.0f, 4.0f);
+    drawTree(12.0f, -12.0f, 3.5f);
+    drawTree(-15.0f, 8.0f, 4.5f);
+    drawTree(18.0f, 10.0f, 3.8f);
+    drawTree(-25.0f, -8.0f, 4.2f);
+    drawTree(28.0f, -20.0f, 3.9f);
+    drawTree(-10.0f, 25.0f, 4.1f);
+    drawTree(22.0f, 28.0f, 3.7f);
+    drawTree(5.0f, -25.0f, 4.3f);
+    drawTree(-18.0f, 18.0f, 3.6f);
     
-    // Draw fences
-    drawFence(-15.0f, -25.0f, 10.0f, 0);
-    drawFence(15.0f, -20.0f, 8.0f, 45);
-    drawFence(-10.0f, 15.0f, 12.0f, 90);
-    drawFence(20.0f, 10.0f, 10.0f, 0);
+    // Draw fences (around properties and fields)
+    drawFence(-20.0f, -28.0f, 12.0f, 0);    // North fence
+    drawFence(18.0f, -25.0f, 10.0f, 45);    // Northeast fence
+    drawFence(-15.0f, 20.0f, 15.0f, 90);    // West fence
+    drawFence(25.0f, 15.0f, 12.0f, 0);      // East fence
+    drawFence(-8.0f, -35.0f, 20.0f, 0);     // Crop field fence
     
-    // Draw rocks
-    drawRock(5.0f, -5.0f, 0.8f);
-    drawRock(-8.0f, -12.0f, 1.0f);
-    drawRock(12.0f, 3.0f, 0.7f);
-    drawRock(-18.0f, 8.0f, 0.9f);
-    drawRock(22.0f, -8.0f, 1.1f);
+    // Draw rocks (scattered naturally)
+    drawRock(8.0f, -8.0f, 0.8f);
+    drawRock(-12.0f, -15.0f, 1.0f);
+    drawRock(15.0f, 5.0f, 0.7f);
+    drawRock(-22.0f, 12.0f, 0.9f);
+    drawRock(25.0f, -12.0f, 1.1f);
+    drawRock(-5.0f, 20.0f, 0.8f);
     
-    // Draw crops (wheat and carrots)
+    // Draw crops (wheat and carrots in organized fields)
+    // North field
+    for (int i = 0; i < 6; i++) {
+        drawCrop(-8.0f + i * 3, -32.0f);
+        drawCrop(-8.0f + i * 3, -35.0f);
+    }
+    // South field  
     for (int i = 0; i < 5; i++) {
-        drawCrop(-5.0f + i * 3, -30.0f);
-        drawCrop(10.0f + i * 3, -35.0f);
+        drawCrop(12.0f + i * 3, 32.0f);
     }
     
-    // Draw grass blocks
-    for (int i = -3; i <= 3; i++) {
-        for (int j = -3; j <= 3; j++) {
+    // Draw grass blocks (reduced density to avoid clutter)
+    for (int i = -2; i <= 2; i++) {
+        for (int j = -2; j <= 2; j++) {
+            // Skip center area where player and main objects are
+            if (abs(i) <= 1 && abs(j) <= 1) continue;
             if ((i + j) % 2 == 0) {
-                drawGrassBlock(i * 5.0f, j * 5.0f);
+                drawGrassBlock(i * 8.0f, j * 8.0f);
             }
         }
     }
     
-    // Draw street lamps
-    drawStreetLamp(-10.0f, -10.0f);
-    drawStreetLamp(10.0f, -10.0f);
-    drawStreetLamp(-10.0f, 10.0f);
-    drawStreetLamp(10.0f, 10.0f);
+    // Draw street lamps (positioned at corners around central area)
+    drawStreetLamp(-10.0f, -10.0f);  // Northwest
+    drawStreetLamp(10.0f, -10.0f);   // Northeast
+    drawStreetLamp(-10.0f, 10.0f);   // Southwest
+    drawStreetLamp(10.0f, 10.0f);    // Southeast
     
     // Draw packages (collectibles)
     for (int i = 0; i < TOTAL_PACKAGES; i++) {
