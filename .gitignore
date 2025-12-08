@@ -4,12 +4,16 @@
 *.exe
 BlitzMail
 OpenGL3DTemplate
+test_*
 
 # CMake
 build/
 CMakeCache.txt
 CMakeFiles/
 cmake_install.cmake
+
+# CodeQL
+_codeql_build_dir/
 
 # Visual Studio
 .vs/
