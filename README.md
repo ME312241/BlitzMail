@@ -21,23 +21,28 @@ A 3D OpenGL game featuring a rural mail delivery scenario with a mailman charact
 - **GLUT/FreeGLUT**: For window management and input
 - **Assimp 5.x**: For 3D model loading
 
-### Building on Linux
+### Quick Build
 
+**Linux/macOS:**
 ```bash
 # Install dependencies (Ubuntu/Debian)
 sudo apt-get update
 sudo apt-get install -y build-essential freeglut3-dev libassimp-dev
 
-# Build with Make
+# Build and run
 make
 ./BlitzMail
-
-# Or build with CMake
-mkdir build && cd build
-cmake ..
-cmake --build .
-./BlitzMail
 ```
+
+**Windows (Visual Studio):**
+```cmd
+# Install dependencies with vcpkg
+vcpkg install assimp:x86-windows freeglut:x86-windows
+
+# Open OpenGL3DTemplate.sln and press F5
+```
+
+📖 **For detailed build instructions for all platforms, see [BUILD_INSTRUCTIONS.md](BUILD_INSTRUCTIONS.md)**
 
 ### Building on Windows
 
