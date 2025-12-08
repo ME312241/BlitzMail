@@ -8,14 +8,12 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Find required packages
 find_package(OpenGL REQUIRED)
 find_package(GLUT REQUIRED)
-find_package(assimp REQUIRED)
 
 # Include directories
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${OPENGL_INCLUDE_DIRS}
     ${GLUT_INCLUDE_DIRS}
-    ${ASSIMP_INCLUDE_DIRS}
 )
 
 # Source files
@@ -36,7 +34,6 @@ add_executable(BlitzMail ${SOURCES} ${HEADERS})
 target_link_libraries(BlitzMail
     ${OPENGL_LIBRARIES}
     ${GLUT_LIBRARIES}
-    ${ASSIMP_LIBRARIES}
 )
 
 # Platform-specific settings
@@ -46,18 +43,13 @@ if(WIN32)
         WIN32_EXECUTABLE OFF  # Keep console window
     )
     
-    # Copy GLUT and Assimp DLLs to output directory
+    # Copy GLUT DLLs to output directory
     add_custom_command(TARGET BlitzMail POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${CMAKE_CURRENT_SOURCE_DIR}/glut32.dll"
         $<TARGET_FILE_DIR:BlitzMail>
         COMMENT "Copying GLUT DLL"
     )
-    
-    # On Windows, you may need to manually specify Assimp paths
-    # Uncomment and adjust these lines if CMake doesn't find Assimp automatically:
-    # set(ASSIMP_INCLUDE_DIRS "C:/Program Files/Assimp/include")
-    # set(ASSIMP_LIBRARIES "C:/Program Files/Assimp/lib/assimp.lib")
     
 elseif(UNIX AND NOT APPLE)
     # Linux-specific settings
@@ -90,7 +82,6 @@ message(STATUS "C++ Standard: ${CMAKE_CXX_STANDARD}")
 message(STATUS "Build Type: ${CMAKE_BUILD_TYPE}")
 message(STATUS "OpenGL: ${OPENGL_LIBRARIES}")
 message(STATUS "GLUT: ${GLUT_LIBRARIES}")
-message(STATUS "Assimp: ${ASSIMP_LIBRARIES}")
 message(STATUS "")
 
 # Add build instructions
