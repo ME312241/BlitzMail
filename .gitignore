@@ -14,6 +14,8 @@ Release/
 *.lib
 *.dll
 BlitzMail
+test_assimp
+test_model_loading
 
 # Backup files
 *.backup
